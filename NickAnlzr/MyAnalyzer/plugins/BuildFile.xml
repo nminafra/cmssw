@@ -1,0 +1,11 @@
+<use name="FWCore/Framework"/>
+<use name="FWCore/PluginManager"/>
+<use name="FWCore/ParameterSet"/>
+<use   name="rootcore"/>
+<use   name="root"/>
+<use   name="DataFormats/CTPPSDetId"/>
+<use   name="DataFormats/CTPPSDigi"/>
+<use   name="Geometry/VeryForwardGeometryBuilder"/>
+<use   name="Geometry/VeryForwardRPTopology"/>
+ <use name="CommonTools/UtilAlgos"/>
+<flags EDM_PLUGIN="1"/>
