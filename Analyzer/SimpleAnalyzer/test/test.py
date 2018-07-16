@@ -38,7 +38,7 @@ process.dqmSaver.tag = "CTPPS"
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
     *(
-    '/store/data/Run2018B/TOTEM40/AOD/PromptReco-v2/000/319/190/00000/EEA74793-B981-E811-BEC4-FA163EC77B81.root',
+    'root:///afs/cern.ch/user/n/nminafra/Work/public/SampicCMS/319190_testAOD.root',
     # '/store/data/Run2018B/TOTEM40/RECO/PromptReco-v2/000/319/190/00000/00A9F18A-B481-E811-9ECD-02163E014BBF.root ',
     )
     )
