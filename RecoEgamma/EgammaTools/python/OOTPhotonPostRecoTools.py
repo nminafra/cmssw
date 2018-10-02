@@ -3,6 +3,7 @@ import FWCore.ParameterSet.Config as cms
 #define the default IDs to produce in VID
 _defaultPhoIDModules = [ 
                          'RecoEgamma.PhotonIdentification.Identification.cutBasedPhotonID_Fall17_94X_V1_TrueVtx_cff',
+                         'RecoEgamma.PhotonIdentification.Identification.cutBasedPhotonID_Fall17_94X_OOT_V1_cff',
                        ]
 
 def _setupOOTPhotonPostRECOSequenceMiniAOD(process):
