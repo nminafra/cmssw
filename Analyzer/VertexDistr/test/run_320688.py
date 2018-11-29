@@ -3,7 +3,7 @@ import FWCore.ParameterSet.Config as cms
 process = cms.Process("Demo")
 
 process.load("FWCore.MessageService.MessageLogger_cfi")
-process.MessageLogger.cerr.FwkReport.reportEvery = cms.untracked.int32(10000)
+process.MessageLogger.cerr.FwkReport.reportEvery = cms.untracked.int32(1000)
 
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 
@@ -12,6 +12,8 @@ process.source = cms.Source("PoolSource",
 	# fileNames = cms.untracked.vstring(options.files),
 	fileNames = cms.untracked.vstring(
     *(
+# 'file:///eos/user/n/nminafra/EcalFiles/FEE64C09-FC97-E811-804D-FA163E1CED1A.root',
+# 'file:///eos/user/n/nminafra/EcalFiles/FE491CAC-1C98-E811-B29B-FA163E3FD732.root',
 '/store/data/Run2018D/EGamma/AOD/PromptReco-v2/000/320/688/00000/FEE64C09-FC97-E811-804D-FA163E1CED1A.root',
 '/store/data/Run2018D/EGamma/AOD/PromptReco-v2/000/320/688/00000/FE491CAC-1C98-E811-B29B-FA163E3FD732.root',
 '/store/data/Run2018D/EGamma/AOD/PromptReco-v2/000/320/688/00000/FCE1B388-1798-E811-A722-FA163ECFF8BE.root',
@@ -287,10 +289,29 @@ process.source = cms.Source("PoolSource",
 
 process.demo = cms.EDAnalyzer('VertexDistr',
 pfTag = cms.InputTag('particleFlow'),
+barrelEcalHits = cms.InputTag("ecalRecHit:EcalRecHitsEB"),
+endcapEcalHits = cms.InputTag("ecalRecHit:EcalRecHitsEE"),
+tagDiamondRecHits = cms.InputTag("ctppsDiamondRecHits"),
 )
 
+process.LHCInfoReader = cms.ESSource("PoolDBESSource",
+		DBParameters = cms.PSet(
+			messageLevel = cms.untracked.int32(0),
+			authenticationPath = cms.untracked.string('')
+		),
+                toGet = cms.VPSet(
+			cms.PSet(
+				record = cms.string("LHCInfoRcd"),
+                                tag = cms.string("LHCInfoStartFillTest_v2")
+			)
+		),
+                connect = cms.string('frontier://FrontierPrep/CMS_CONDITIONS')
+)
+
+process.lhcinfo_prefer = cms.ESPrefer("PoolDBESSource","LHCInfoReader")
+
 process.TFileService = cms.Service("TFileService",
-     fileName = cms.string('output_long.root')
+     fileName = cms.string('output_20.root')
 )
 
 process.p = cms.Path(process.demo)

@@ -3,6 +3,8 @@
 <use name="FWCore/ParameterSet"/>
 <use name="DataFormats/ParticleFlowCandidate"/>
 <use name="DataFormats/ParticleFlowReco"/>
+<use name="DataFormats/CTPPSDetId"/>
+<use name="CondFormats/RunInfo"/>
 <use   name="RecoVertex/VertexTools"/>
 <use name="CommonTools/UtilAlgos"/>
 <flags EDM_PLUGIN="1"/>
