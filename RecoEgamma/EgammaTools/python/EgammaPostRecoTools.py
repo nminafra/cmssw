@@ -13,10 +13,11 @@ _defaultEleIDModules =  [ 'RecoEgamma.ElectronIdentification.Identification.heep
                         'RecoEgamma.ElectronIdentification.Identification.mvaElectronID_Spring16_HZZ_V1_cff',
                         ]
 _defaultPhoIDModules =  [ 'RecoEgamma.PhotonIdentification.Identification.cutBasedPhotonID_Fall17_94X_V1_TrueVtx_cff',
-                        'RecoEgamma.PhotonIdentification.Identification.mvaPhotonID_Fall17_94X_V1_cff', 
-                        'RecoEgamma.PhotonIdentification.Identification.mvaPhotonID_Fall17_94X_V1p1_cff', 
-                        'RecoEgamma.PhotonIdentification.Identification.cutBasedPhotonID_Spring16_V2p2_cff',
-                        'RecoEgamma.PhotonIdentification.Identification.mvaPhotonID_Spring16_nonTrig_V1_cff'
+                          'RecoEgamma.PhotonIdentification.Identification.cutBasedPhotonID_Fall17_94X_OOT_V1_cff',
+                          #'RecoEgamma.PhotonIdentification.Identification.mvaPhotonID_Fall17_94X_V1_cff', 
+                          #'RecoEgamma.PhotonIdentification.Identification.mvaPhotonID_Fall17_94X_V1p1_cff', 
+                          #'RecoEgamma.PhotonIdentification.Identification.cutBasedPhotonID_Spring16_V2p2_cff',
+                          #'RecoEgamma.PhotonIdentification.Identification.mvaPhotonID_Spring16_nonTrig_V1_cff'
                         ]
 
 #the new Fall17V2 modules are loaded as default if they exist in the release
@@ -144,6 +145,7 @@ def _setupEgammaEnergyCorrections(process,eleSrc=cms.InputTag('gedGsfElectrons')
     elif applyEPCombBug:
         raise RuntimeError('Error in postRecoEgammaTools, the E/p combination bug can not be applied in >= 10_2_X (applyEPCombBug must be False), it is only possible to emulate in 9_4_X')
 
+
 def _setupEgammaPostRECOSequence(process,applyEnergyCorrections=False,applyVIDOnCorrectedEgamma=False,era="2017-Nov17ReReco",runVID=True,runEnergyCorrections=True,applyEPCombBug=False):
     
     if runVID==False and runEnergyCorrections==False:
@@ -174,11 +176,11 @@ def _setupEgammaPostRECOSequence(process,applyEnergyCorrections=False,applyVIDOn
     _setupEgammaEnergyCorrections(process,eleSrc=eleSrc,phoSrc=phoSrc,applyEnergyCorrections=applyEnergyCorrections,era=era,runEnergyCorrections=runEnergyCorrections,applyEPCombBug=applyEPCombBug)
 
     if runVID:
-        process.egmGsfElectronIDs.physicsObjectSrc = eleSrc
+        #process.egmGsfElectronIDs.physicsObjectSrc = eleSrc
         process.egmPhotonIDs.physicsObjectSrc = phoSrc
-        process.electronMVAValueMapProducer.src = eleSrc  
-        if hasattr(process,'electronMVAVariableHelper'):
-            process.electronMVAVariableHelper.srcMiniAOD = eleSrc
+        #process.electronMVAValueMapProducer.src = eleSrc  
+        #if hasattr(process,'electronMVAVariableHelper'):
+            #process.electronMVAVariableHelper.srcMiniAOD = eleSrc
         process.photonMVAValueMapProducer.src = phoSrc
         process.photonIDValueMapProducer.src = phoSrc
         process.egmPhotonIsolation.srcToIsolate = phoSrc
@@ -236,47 +238,54 @@ def _setupEgammaPostRECOSequenceMiniAOD(process,applyEnergyCorrections=False,app
         raise RuntimeError('Error, applyEnergyCorrections {} and applyVIDOnCorrectedEgamma {} must be equal to each other for now,\n functionality for them to be different isnt yet availible'.format(applyEnergyCorrections,applyVIDOnCorrectedEgamma))
 
 
-    phoSrc = cms.InputTag('slimmedPhotons',processName=cms.InputTag.skipCurrentProcess())
-    eleSrc = cms.InputTag('slimmedElectrons',processName=cms.InputTag.skipCurrentProcess())
-    phoCalibSrc = cms.InputTag('calibratedPatPhotons')
-    eleCalibSrc = cms.InputTag('calibratedPatElectrons')
+    #phoSrc = cms.InputTag('slimmedPhotons',processName=cms.InputTag.skipCurrentProcess())
+    #eleSrc = cms.InputTag('slimmedElectrons',processName=cms.InputTag.skipCurrentProcess())
+    #phoCalibSrc = cms.InputTag('calibratedPatPhotons')
+    #eleCalibSrc = cms.InputTag('calibratedPatElectrons')
 
-    _setupEgammaEnergyCorrectionsMiniAOD(process,eleSrc=eleSrc,phoSrc=phoSrc,applyEnergyCorrections=applyEnergyCorrections,applyVIDOnCorrectedEgamma=applyVIDOnCorrectedEgamma,era=era,runEnergyCorrections=runEnergyCorrections,applyEPCombBug=applyEPCombBug)
+    phoSrc = cms.InputTag('slimmedOOTPhotons',processName=cms.InputTag.skipCurrentProcess())
+    phoCalibSrc = cms.InputTag('slimmedOOTPhotons',processName=cms.InputTag.skipCurrentProcess())
+
+    process.load('RecoEgamma.EgammaTools.calibratedEgammas_cff')
+    process.calibratedPatPhotons.src = phoCalibSrc
+    process.calibratedPatPhotons.produceCalibratedObjs = False
+
+    #_setupEgammaEnergyCorrectionsMiniAOD(process,eleSrc=eleSrc,phoSrc=phoSrc,applyEnergyCorrections=applyEnergyCorrections,applyVIDOnCorrectedEgamma=applyVIDOnCorrectedEgamma,era=era,runEnergyCorrections=runEnergyCorrections,applyEPCombBug=applyEPCombBug)
 
     if applyVIDOnCorrectedEgamma:
         phoVIDSrc = phoCalibSrc
-        eleVIDSrc = eleCalibSrc
+        #eleVIDSrc = eleCalibSrc
     else:
         phoVIDSrc = phoSrc
-        eleVIDSrc = eleSrc
+        #eleVIDSrc = eleSrc
 
     if applyEnergyCorrections:
         phoNewSrc = phoCalibSrc
-        eleNewSrc = eleCalibSrc
+        #eleNewSrc = eleCalibSrc
     else:
         phoNewSrc = phoSrc
-        eleNewSrc = eleSrc
+        #eleNewSrc = eleSrc
 
     if runVID:
-        process.egmGsfElectronIDs.physicsObjectSrc = eleVIDSrc
+        #process.egmGsfElectronIDs.physicsObjectSrc = eleVIDSrc
         process.egmPhotonIDs.physicsObjectSrc = phoVIDSrc
-        process.electronMVAValueMapProducer.srcMiniAOD = eleVIDSrc
-        if hasattr(process,'electronMVAVariableHelper'):
-            process.electronMVAVariableHelper.srcMiniAOD = eleVIDSrc
+        #process.electronMVAValueMapProducer.srcMiniAOD = eleVIDSrc
+        #if hasattr(process,'electronMVAVariableHelper'):
+            #process.electronMVAVariableHelper.srcMiniAOD = eleVIDSrc
         process.photonMVAValueMapProducer.srcMiniAOD = phoVIDSrc
         process.photonIDValueMapProducer.srcMiniAOD = phoVIDSrc
         process.egmPhotonIsolation.srcToIsolate = phoVIDSrc
 
-    if runVID and hasattr(process,'heepIDVarValueMaps'):
-        process.heepIDVarValueMaps.elesMiniAOD = eleVIDSrc
-        process.heepIDVarValueMaps.dataFormat = 2
+    #if runVID and hasattr(process,'heepIDVarValueMaps'):
+        #process.heepIDVarValueMaps.elesMiniAOD = eleVIDSrc
+        #process.heepIDVarValueMaps.dataFormat = 2
 
 
     from RecoEgamma.EgammaTools.egammaObjectModificationsInMiniAOD_cff import egamma_modifications,egamma8XLegacyEtScaleSysModifier,egamma8XObjectUpdateModifier
-    from RecoEgamma.EgammaTools.egammaObjectModifications_tools import makeVIDBitsModifier,makeVIDinPATIDsModifier,makeEnergyScaleAndSmearingSysModifier  
+    from RecoEgamma.EgammaTools.photonObjectModifications_tools import makeVIDBitsModifier,makeVIDinPATIDsModifier,makeEnergyScaleAndSmearingSysModifier  
     if runVID:
-        egamma_modifications.append(makeVIDBitsModifier(process,"egmGsfElectronIDs","egmPhotonIDs"))
-        egamma_modifications.append(makeVIDinPATIDsModifier(process,"egmGsfElectronIDs","egmPhotonIDs"))
+        egamma_modifications.append(makeVIDBitsModifier(process,"egmPhotonIDs"))
+        egamma_modifications.append(makeVIDinPATIDsModifier(process,"egmPhotonIDs"))
     else:
         egamma_modifications = cms.VPSet() #reset all the modifications which so far are just VID
     if _is80XRelease(era): 
@@ -287,28 +296,28 @@ def _setupEgammaPostRECOSequenceMiniAOD(process,applyEnergyCorrections=False,app
 
 
     #add any missing variables to the slimmed electron 
-    if runVID:
+    #if runVID:
         #MVA V2 values may not be added by default due to data format consistency issues
-        _addMissingMVAValuesToUserData(process,egamma_modifications)
+        #_addMissingMVAValuesToUserData(process,egamma_modifications)
         #now add HEEP trk isolation
-        for pset in egamma_modifications:
-            if pset.hasParameter("modifierName") and pset.modifierName == cms.string('EGExtraInfoModifierFromFloatValueMaps'):
-                pset.electron_config.heepTrkPtIso = cms.InputTag("heepIDVarValueMaps","eleTrkPtIso")
-                break
+        #for pset in egamma_modifications:
+            #if pset.hasParameter("modifierName") and pset.modifierName == cms.string('EGExtraInfoModifierFromFloatValueMaps'):
+                #pset.electron_config.heepTrkPtIso = cms.InputTag("heepIDVarValueMaps","eleTrkPtIso")
+                #break
 
     for pset in egamma_modifications:
         pset.overrideExistingValues = cms.bool(True)
-        if hasattr(pset,"electron_config"): pset.electron_config.electronSrc = eleNewSrc
-        if hasattr(pset,"photon_config"): pset.photon_config.photonSrc = phoNewSrc
+        #if hasattr(pset,"electron_config"): pset.electron_config.electronSrc = eleNewSrc
+        if hasattr(pset,"photon_config"): pset.photon_config.photonSrc = phoSrc # My fix, could be wrong (previously phoNewSrc)
 
-    process.slimmedElectrons = cms.EDProducer("ModifiedElectronProducer",
-                                              src=eleNewSrc,
-                                              modifierConfig = cms.PSet(
-                                                  modifications = egamma_modifications
-                                                  )
-                                              )
-    process.slimmedPhotons = cms.EDProducer("ModifiedPhotonProducer",
-                                            src=phoNewSrc,
+    #process.slimmedElectrons = cms.EDProducer("ModifiedElectronProducer",
+    #                                          src=eleNewSrc,
+    #                                          modifierConfig = cms.PSet(
+    #                                              modifications = egamma_modifications
+    #                                              )
+    #                                          )
+    process.slimmedOOTPhotons = cms.EDProducer("ModifiedPhotonProducer",
+                                            src=phoSrc, # My fix
                                             modifierConfig = cms.PSet(
                                                 modifications = egamma_modifications
                                                 )
@@ -317,12 +326,12 @@ def _setupEgammaPostRECOSequenceMiniAOD(process,applyEnergyCorrections=False,app
     process.egammaScaleSmearTask = cms.Task()
     process.egammaPostRecoPatUpdatorTask = cms.Task()
     #we only run if the modifications are going to do something
-    if egamma_modifications != cms.VPSet():
-        process.egammaPostRecoPatUpdatorTask.add(process.slimmedElectrons)
-        process.egammaPostRecoPatUpdatorTask.add(process.slimmedPhotons)
-        if runEnergyCorrections:
-            process.egammaScaleSmearTask.add(process.calibratedPatElectrons)
-            process.egammaScaleSmearTask.add(process.calibratedPatPhotons)
+    #if egamma_modifications != cms.VPSet():
+        #process.egammaPostRecoPatUpdatorTask.add(process.slimmedElectrons)
+        #process.egammaPostRecoPatUpdatorTask.add(process.slimmedOOTPhotons)
+    if runEnergyCorrections:
+        #process.egammaScaleSmearTask.add(process.calibratedPatElectrons)
+        process.egammaScaleSmearTask.add(process.calibratedPatPhotons)
 
 
 def setupEgammaPostRecoSeq(process,
@@ -342,15 +351,15 @@ def setupEgammaPostRecoSeq(process,
     # DataFormat.AOD or DataFormat.MiniAOD, as appropriate
     if runVID:
         if isMiniAOD:
-            switchOnVIDElectronIdProducer(process,DataFormat.MiniAOD)
+            #switchOnVIDElectronIdProducer(process,DataFormat.MiniAOD)
             switchOnVIDPhotonIdProducer(process,DataFormat.MiniAOD)
         else:
             switchOnVIDElectronIdProducer(process,DataFormat.AOD)
             switchOnVIDPhotonIdProducer(process,DataFormat.AOD)
 
 
-        for idmod in eleIDModules:
-            setupAllVIDIdsInModule(process,idmod,setupVIDElectronSelection)
+        #for idmod in eleIDModules:
+            #setupAllVIDIdsInModule(process,idmod,setupVIDElectronSelection)
         for idmod in phoIDModules:
             setupAllVIDIdsInModule(process,idmod,setupVIDPhotonSelection)
 
@@ -366,14 +375,14 @@ def setupEgammaPostRecoSeq(process,
     
     process.egammaScaleSmearSeq = cms.Sequence(process.egammaScaleSmearTask)
     #post reco seq is calibrations -> vid -> pat updator 
-    process.egammaPostRecoSeq   = cms.Sequence(process.egammaScaleSmearSeq)
-    if not runEnergyCorrections and runVID:
-        process.egammaPostRecoSeq = cms.Sequence(process.egmGsfElectronIDSequence*process.egmPhotonIDSequence)
-    elif runVID:
-        process.egammaPostRecoSeq.insert(-1,process.egmGsfElectronIDSequence)
-        process.egammaPostRecoSeq.insert(-1,process.egmPhotonIDSequence)
-    if isMiniAOD:
-        process.egammaPostRecoPatUpdatorSeq = cms.Sequence(process.egammaPostRecoPatUpdatorTask)
-        process.egammaPostRecoSeq.insert(-1,process.egammaPostRecoPatUpdatorSeq)     
+    process.egammaPostRecoSeq   = cms.Sequence( process.egammaScaleSmearSeq * process.egmPhotonIDSequence )
+    #if not runEnergyCorrections and runVID:
+    #    process.egammaPostRecoSeq = cms.Sequence(process.egmGsfElectronIDSequence*process.egmPhotonIDSequence)
+    #elif runVID:
+    #    process.egammaPostRecoSeq.insert(-1,process.egmGsfElectronIDSequence)
+    #    process.egammaPostRecoSeq.insert(-1,process.egmPhotonIDSequence)
+    #if isMiniAOD:
+    #    process.egammaPostRecoPatUpdatorSeq = cms.Sequence(process.egammaPostRecoPatUpdatorTask)
+    #    process.egammaPostRecoSeq.insert(-1,process.egammaPostRecoPatUpdatorSeq)     
                        
     return process
