@@ -258,6 +258,7 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
 {
     if (digis.empty())
       return;
+      std::cout<<"***************************** EcalUncalibRecHitWorkerMultiFit REMOVE"<<std::endl;
 
     // assume all digis come from the same subdetector (either barrel or endcap)
     DetId detid(digis.begin()->id());
