@@ -258,7 +258,6 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
 {
     if (digis.empty())
       return;
-      std::cout<<"***************************** EcalUncalibRecHitWorkerMultiFit REMOVE"<<std::endl;
 
     // assume all digis come from the same subdetector (either barrel or endcap)
     DetId detid(digis.begin()->id());
@@ -324,8 +323,12 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
         double pedRMSVec[3]  = { aped->rms_x12,  aped->rms_x6,  aped->rms_x1 };
         double gainRatios[3] = { 1., aGain->gain12Over6(), aGain->gain6Over1()*aGain->gain12Over6()};
 
-        for (int i=0; i<EcalPulseShape::TEMPLATESAMPLES; ++i)
+        std::cout << "PLOTP ";
+        for (int i=0; i<EcalPulseShape::TEMPLATESAMPLES; ++i) {
             fullpulse(i+7) = aPulse->pdfval[i];
+            std::cout << aPulse->pdfval[i] << "\t";
+          }
+          std::cout << std::endl;
 
         for(int i=0; i<EcalPulseShape::TEMPLATESAMPLES;i++)
         for(int j=0; j<EcalPulseShape::TEMPLATESAMPLES;j++)
@@ -489,31 +492,106 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 } else {
                     timerh = weightsMethod_barrel_.time( *itdg, amplitudes, aped, aGain, fullpulse, weights);
                 }
+                for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) {
+                  std::cout<<uncalibRecHit.outOfTimeAmplitude(ibx)<<"\t";
+                }
+                std::cout<< "\nTime: " << timerh << std::endl;
                 uncalibRecHit.setJitter( timerh );
                 uncalibRecHit.setJitterError( 0. ); // not computed with weights
 
             } else if (timealgo_ == kansasMethod) {
-                //  test algorithm by KU
-                edm::LogWarning("KUTestTimeAlgorithm") << "Starting..";
-                std::vector<double> amplitudes;
-                for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
+
+              const EcalDataFrame& dataFrame = *itdg; //EBDataFrame or EEDataFrame
+
+              std::vector<double> amplitudes;
+              for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
+
+              const unsigned int nsample = EcalDataFrame::MAXSAMPLES;
+
+              double maxamplitude = -std::numeric_limits<double>::max();
+
+              double pulsenorm = 0.;
+              // int iGainSwitch = 0;
+
+              ROOT::Math::SVector<double,nsample> pedSubSamples;
+              for(unsigned int iSample = 0; iSample < nsample; iSample++) {
+
+                const EcalMGPASample &sample = dataFrame.sample(iSample);
+
+                double amplitude = 0.;
+                int gainId = sample.gainId();
+
+                double pedestal = 0.;
+                double gainratio = 1.;
+
+                if (gainId==0 || gainId==3) {
+                  pedestal = aped->mean_x1;
+                  gainratio = aGain->gain6Over1()*aGain->gain12Over6();
+                  // iGainSwitch = 1;
+                }
+                else if (gainId==1) {
+                  pedestal = aped->mean_x12;
+                  gainratio = 1.;
+                  // iGainSwitch = 0;
+                }
+                else if (gainId==2) {
+                  pedestal = aped->mean_x6;
+                  gainratio = aGain->gain12Over6();
+                  // iGainSwitch = 1;
+                }
+
+                amplitude = ((double)(sample.adc()) - pedestal) * gainratio;
+
+                if (gainId == 0) {
+                  //saturation
+                  amplitude = (4095. - pedestal) * gainratio;
+                }
+
+                pedSubSamples(iSample) = amplitude;
+
+                if (amplitude>maxamplitude) {
+                  maxamplitude = amplitude;
+                }
+                pulsenorm += fullpulse(iSample);
+              }
+
+              for(auto amplit=amplitudes.begin(); amplit<amplitudes.end(); ++amplit) {
+                int ipulse = std::distance(amplitudes.begin(),amplit);
+                int bx = ipulse - 5;
+                int firstsamplet = std::max(0,bx + 3);
+                int offset = 7-3-bx;
+
+                TVectorD pulse;
+                pulse.ResizeTo(nsample);
+                for (unsigned int isample = firstsamplet; isample<nsample; ++isample) {
+                  pulse(isample) = fullpulse(isample+offset);
+                  pedSubSamples(isample) = std::max(0., pedSubSamples(isample) - amplitudes[ipulse]*pulse(isample)/pulsenorm);
+                }
+              }
+
+              double maxOfpedSubSamples = 0.;
+              for (unsigned int isample = 0; isample<nsample; ++isample) {
+                if (pedSubSamples(isample)>maxOfpedSubSamples)
+                  maxOfpedSubSamples = pedSubSamples(isample);
+              }
+              for (unsigned int isample = 0; isample<nsample; ++isample) {
+                  pedSubSamples(isample) = pedSubSamples(isample)/maxOfpedSubSamples;
+              }
+
+              std::cout << "PLOTS\t";
+              for (unsigned int isample = 0; isample<nsample; ++isample) {
+                std::cout<< std::setw(10)<<pedSubSamples(isample)<<"\t";
+              }
+              std::cout << std::endl;
 
 
+              // Compute parameters
+              double jitter_(-1.);
 
-                double timerh = -10;
-                // if (detid.subdetId()==EcalEndcap) {
-                //     timerh = weightsMethod_endcap_.time( *itdg, amplitudes, aped, aGain, fullpulse, weights);
-                // } else {
-                //     timerh = weightsMethod_barrel_.time( *itdg, amplitudes, aped, aGain, fullpulse, weights);
-                // }
-                uncalibRecHit.setJitter( timerh );
-                uncalibRecHit.setJitterError( 0. ); // not computed with weights
-
-
-            }  else { // no time method;
-                uncalibRecHit.setJitter( 0. );
-                uncalibRecHit.setJitterError( 0. );
+              uncalibRecHit.setJitter( jitter_ );
+              uncalibRecHit.setJitterError( 0. ); // not computed with weights
             }
+
         }
 
 	// set flags if gain switch has occurred
