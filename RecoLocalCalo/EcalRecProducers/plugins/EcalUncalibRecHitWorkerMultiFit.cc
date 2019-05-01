@@ -586,7 +586,7 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
 
 
               // Compute parameters
-              double jitter_(-1.);
+              double jitter_(0.);
 
               uncalibRecHit.setJitter( jitter_ );
               uncalibRecHit.setJitterError( 0. ); // not computed with weights
