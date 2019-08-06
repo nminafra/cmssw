@@ -66,6 +66,7 @@ EcalUncalibRecHitWorkerMultiFit::EcalUncalibRecHitWorkerMultiFit(const edm::Para
   auto const & timeAlgoName = ps.getParameter<std::string>("timealgo");
   if(timeAlgoName=="RatioMethod") timealgo_=ratioMethod;
   else if(timeAlgoName=="WeightsMethod") timealgo_=weightsMethod;
+  else if(timeAlgoName=="weightsMethodnoOOT") timealgo_=weightsMethodnoOOT;
   else if(timeAlgoName=="Kansas") timealgo_=kansasMethod;
   else if(timeAlgoName!="None")
    edm::LogError("EcalUncalibRecHitError") << "No time estimation algorithm defined";
@@ -462,10 +463,15 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                     }
 
                 }
-            } else if (timealgo_ == weightsMethod) {
+            } else if (timealgo_ == weightsMethod || timealgo_ == weightsMethodnoOOT) {
                 //  weights method on the PU subtracted pulse shape
                 std::vector<double> amplitudes;
-                for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
+                if (timealgo_ == weightsMethod) {
+                  for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
+                }
+                else {
+                  for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(0);
+                }
 
                 EcalTBWeights::EcalTDCId tdcid(1);
                 EcalTBWeights::EcalTBWeightMap const & wgtsMap = wgts->getMap();

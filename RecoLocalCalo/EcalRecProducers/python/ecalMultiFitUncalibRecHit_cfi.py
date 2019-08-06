@@ -34,6 +34,8 @@ ecalMultiFitUncalibRecHit = cms.EDProducer("EcalUncalibRecHitProducer",
 
       # decide which algorithm to be use to calculate the jitter
       # timealgo = cms.string("RatioMethod"),
+      # timealgo = cms.string("WeightsMethod"),
+      # timealgo = cms.string("WeightsMethodnoOOT"),
       timealgo = cms.string("Kansas"),
 
       # for ratio method

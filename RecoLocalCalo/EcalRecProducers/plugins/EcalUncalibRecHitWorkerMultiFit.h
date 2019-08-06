@@ -77,7 +77,7 @@ class EcalUncalibRecHitWorkerMultiFit final : public EcalUncalibRecHitWorkerBase
                 edm::ESHandle<EcalSampleMask> sampleMaskHand_;
 
                 // time algorithm to be used to set the jitter and its uncertainty
-                enum TimeAlgo {noMethod, ratioMethod, weightsMethod, kansasMethod};
+                enum TimeAlgo {noMethod, ratioMethod, weightsMethod, weightsMethodnoOOT, kansasMethod};
                 TimeAlgo timealgo_=noMethod;
 
                 // time weights method
