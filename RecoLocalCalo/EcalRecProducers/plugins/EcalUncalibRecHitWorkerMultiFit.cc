@@ -324,12 +324,12 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
         double pedRMSVec[3]  = { aped->rms_x12,  aped->rms_x6,  aped->rms_x1 };
         double gainRatios[3] = { 1., aGain->gain12Over6(), aGain->gain6Over1()*aGain->gain12Over6()};
 
-        std::cout << "PLOTP ";
+        // std::cout << "PLOTP ";
         for (int i=0; i<EcalPulseShape::TEMPLATESAMPLES; ++i) {
             fullpulse(i+7) = aPulse->pdfval[i];
-            std::cout << aPulse->pdfval[i] << "\t";
+            // std::cout << aPulse->pdfval[i] << "\t";
           }
-          std::cout << std::endl;
+          // std::cout << std::endl;
 
         for(int i=0; i<EcalPulseShape::TEMPLATESAMPLES;i++)
         for(int j=0; j<EcalPulseShape::TEMPLATESAMPLES;j++)
@@ -498,10 +498,10 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 } else {
                     timerh = weightsMethod_barrel_.time( *itdg, amplitudes, aped, aGain, fullpulse, weights);
                 }
-                for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) {
-                  std::cout<<uncalibRecHit.outOfTimeAmplitude(ibx)<<"\t";
-                }
-                std::cout<< "\nTime: " << timerh << std::endl;
+                // for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) {
+                //   std::cout<<uncalibRecHit.outOfTimeAmplitude(ibx)<<"\t";
+                // }
+                // std::cout<< "\nTime: " << timerh << std::endl;
                 uncalibRecHit.setJitter( timerh );
                 uncalibRecHit.setJitterError( 0. ); // not computed with weights
 
@@ -584,11 +584,11 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                   pedSubSamples(isample) = pedSubSamples(isample)/maxOfpedSubSamples;
               }
 
-              std::cout << "PLOTS\t";
-              for (unsigned int isample = 0; isample<nsample; ++isample) {
-                std::cout<< std::setw(10)<<pedSubSamples(isample)<<"\t";
-              }
-              std::cout << std::endl;
+              // std::cout << "PLOTS\t";
+              // for (unsigned int isample = 0; isample<nsample; ++isample) {
+              //   std::cout<< std::setw(10)<<pedSubSamples(isample)<<"\t";
+              // }
+              // std::cout << std::endl;
 
 
               // Compute parameters
