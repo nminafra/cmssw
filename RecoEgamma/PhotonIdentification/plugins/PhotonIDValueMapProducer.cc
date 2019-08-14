@@ -18,7 +18,8 @@
 #include "DataFormats/PatCandidates/interface/PackedCandidate.h"
 
 #include "RecoEcal/EgammaCoreTools/interface/EcalClusterLazyTools.h"
-
+#include "RecoEcal/EgammaCoreTools/interface/EcalClusterTools.h"
+#include "RecoEcal/EgammaCoreTools/interface/EcalTools.h"
 #include <memory>
 #include <vector>
 
@@ -84,6 +85,7 @@ class PhotonIDValueMapProducer : public edm::stream::EDProducer<> {
 
   // The object that will compute 5x5 quantities  
   std::unique_ptr<noZS::EcalClusterLazyTools> lazyToolnoZS;
+  std::unique_ptr<noZS::EcalClusterTools> toolnoZS;
 
   // for AOD case
   edm::EDGetTokenT<EcalRecHitCollection> ebReducedRecHitCollection_;
@@ -127,7 +129,10 @@ class PhotonIDValueMapProducer : public edm::stream::EDProducer<> {
   constexpr static char phoTrkIsolation_[] = "phoTrkIsolation";
   constexpr static char phoHcalPFClIsolation_[] = "phoHcalPFClIsolation";
   constexpr static char phoEcalPFClIsolation_[] = "phoEcalPFClIsolation";
-
+  //
+  constexpr static char phoSmaj_[]="phoSmaj";
+  constexpr static char phoSmin_[]="phoSmin";
+  constexpr static char phoAlpha_[]="phoAlpha";
 };
 
 // Cluster shapes
@@ -152,6 +157,10 @@ constexpr char PhotonIDValueMapProducer::phoTrkIsolation_[];
 constexpr char PhotonIDValueMapProducer::phoHcalPFClIsolation_[];
 constexpr char PhotonIDValueMapProducer::phoEcalPFClIsolation_[];
 
+//smaj and smin
+constexpr char PhotonIDValueMapProducer::phoSmaj_[];
+constexpr char PhotonIDValueMapProducer::phoSmin_[];
+constexpr char PhotonIDValueMapProducer::phoAlpha_[];
 
 PhotonIDValueMapProducer::PhotonIDValueMapProducer(const edm::ParameterSet& iConfig) {
 
@@ -198,6 +207,8 @@ PhotonIDValueMapProducer::PhotonIDValueMapProducer(const edm::ParameterSet& iCon
   pfCandidatesToken_        = mayConsume< edm::View<reco::Candidate> >(iConfig.getParameter<edm::InputTag>("pfCandidates")); 
   pfCandidatesTokenMiniAOD_ = mayConsume< edm::View<reco::Candidate> >(iConfig.getParameter<edm::InputTag>("pfCandidatesMiniAOD")); 
 
+
+  
   //
   // Declare producibles
   //
@@ -223,7 +234,10 @@ PhotonIDValueMapProducer::PhotonIDValueMapProducer(const edm::ParameterSet& iCon
   produces<edm::ValueMap<float> >(phoHcalPFClIsolation_);  
   produces<edm::ValueMap<float> >(phoEcalPFClIsolation_);  
 
-
+  //smaj and smin
+  produces<edm::ValueMap<float> >(phoSmaj_);
+  produces<edm::ValueMap<float> >(phoSmin_);
+  produces<edm::ValueMap<float> >(phoAlpha_);
 }
 
 PhotonIDValueMapProducer::~PhotonIDValueMapProducer() {
@@ -273,8 +287,19 @@ void PhotonIDValueMapProducer::produce(edm::Event& iEvent, const edm::EventSetup
                                                       ebReducedRecHitCollectionMiniAOD_,
                                                       eeReducedRecHitCollectionMiniAOD_); 
 
+  } 
+
+
+  edm::Handle<EcalRecHitCollection>      rechitsEB_ ;
+  edm::Handle<EcalRecHitCollection>      rechitsEE_ ;
+  if(isAOD) { 
+    iEvent.getByToken( ebReducedRecHitCollection_, rechitsEB_ );
+    iEvent.getByToken( eeReducedRecHitCollection_, rechitsEE_ );
+    } else  {  
+    iEvent.getByToken( ebReducedRecHitCollectionMiniAOD_, rechitsEB_ );
+    iEvent.getByToken( eeReducedRecHitCollectionMiniAOD_, rechitsEE_ );
   }
-  
+
   // Get PV
   edm::Handle<reco::VertexCollection> vertices;
   iEvent.getByToken(vtxToken_, vertices);
@@ -321,6 +346,10 @@ void PhotonIDValueMapProducer::produce(edm::Event& iEvent, const edm::EventSetup
   std::vector<float> phoWorstChargedIsolationWithPVConstraint;
   std::vector<float> phoWorstChargedIsolationWithConeVetoWithPVConstraint;
 
+  ///smaj and smin
+  std::vector<float> phoSmaj;
+  std::vector<float> phoSmin;
+  std::vector<float> phoAlpha;
   //PFCluster Isolations
   std::vector<float> phoTrkIsolation;
   std::vector<float> phoHcalPFClIsolation;
@@ -353,6 +382,24 @@ void PhotonIDValueMapProducer::produce(edm::Event& iEvent, const edm::EventSetup
 
     phoESEffSigmaRR  .push_back(lazyToolnoZS->eseffsirir( *(iPho->superCluster()) ) );
 
+    //compute cluster shapes 2nd moments: smaj and smin
+    const bool isEB = (theseed.seed().subdetId() == EcalBarrel); // which subdet
+    const EcalRecHitCollection* rechits = ( isEB ) ? rechitsEB_.product() : rechitsEE_.product() ;
+
+    if (rechits->size())
+    {
+      Cluster2ndMoments ph2ndMoments = EcalClusterTools::cluster2ndMoments(theseed,*rechits);
+      phoSmaj.push_back(ph2ndMoments.sMaj);
+      phoSmin.push_back(ph2ndMoments.sMin);
+      phoAlpha.push_back(ph2ndMoments.alpha);
+    }
+    else
+    {
+      phoSmaj.push_back(-1.);
+      phoSmin.push_back(-1.);
+      phoAlpha.push_back(0.);
+    }
+	
     // 
     // Compute absolute uncorrected isolations with footprint removal
     //
@@ -363,7 +410,7 @@ void PhotonIDValueMapProducer::produce(edm::Event& iEvent, const edm::EventSetup
                                            iPho->superCluster()->z() - pv.z());
 
     //PFCluster Isolations
-    phoTrkIsolation      .push_back( iPho->trkSumPtSolidConeDR04());
+    phoTrkIsolation      .push_back( iPho->trkSumPtHollowConeDR03());
     if (isAOD)                                                                                                                                                                  
       {                                                                                                                                                                          
 	phoHcalPFClIsolation .push_back(0.f);
@@ -513,6 +560,11 @@ void PhotonIDValueMapProducer::produce(edm::Event& iEvent, const edm::EventSetup
   writeValueMap(iEvent, src, phoTrkIsolation, phoTrkIsolation_);  
   writeValueMap(iEvent, src, phoHcalPFClIsolation, phoHcalPFClIsolation_);  
   writeValueMap(iEvent, src, phoEcalPFClIsolation, phoEcalPFClIsolation_);  
+
+  //smaj and smin
+  writeValueMap(iEvent, src, phoSmaj, phoSmaj_);  
+  writeValueMap(iEvent, src, phoSmin, phoSmin_);  
+  writeValueMap(iEvent, src, phoAlpha, phoAlpha_);  
 
 }
 

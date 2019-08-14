@@ -1,0 +1,15 @@
+# This file contains Effective Area constants for 
+# computing pile-up corrections for the ECAL isolation
+# for a photon object.
+#
+#  The constants are based on 90% contours of isolation.
+# These effective areas are also found on the following slides:
+#  EB only ID
+# |eta| min   |eta| max   effective area
+0.0000         0.8000     0.194
+0.8000         1.4790     0.099
+1.4790         2.0000     0.0
+2.0000         2.2000     0.0
+2.2000         2.3000     0.0
+2.3000         2.4000     0.0
+2.4000         5.0000     0.0
