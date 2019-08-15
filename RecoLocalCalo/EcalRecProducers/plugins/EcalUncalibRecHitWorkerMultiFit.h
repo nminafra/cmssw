@@ -1,10 +1,10 @@
 #ifndef RecoLocalCalo_EcalRecProducers_EcalUncalibRecHitRecWorkerGlobal_hh
 #define RecoLocalCalo_EcalRecProducers_EcalUncalibRecHitRecWorkerGlobal_hh
 
-/** \class EcalUncalibRecHitRecGlobalAlgo                                                                                                                                           
- *  Template used to compute amplitude, pedestal using a weights method                                                                                                            
- *                           time using a ratio method                                                                                                                             
- *                           chi2 using express method  
+/** \class EcalUncalibRecHitRecGlobalAlgo
+ *  Template used to compute amplitude, pedestal using a weights method
+ *                           time using a ratio method
+ *                           chi2 using express method
  *
  *  \author R. Bruneliere - A. Zabi
  */
@@ -47,7 +47,7 @@ class EcalUncalibRecHitWorkerMultiFit final : public EcalUncalibRecHitWorkerBase
                 void set(const edm::EventSetup& es) override;
                 void set(const edm::Event& evt) override;
                 void run(const edm::Event& evt, const EcalDigiCollection & digis, EcalUncalibratedRecHitCollection & result) override;
-	public:	
+	public:
 		edm::ParameterSetDescription getAlgoDescription() override;
         private:
 
@@ -62,22 +62,22 @@ class EcalUncalibRecHitWorkerMultiFit final : public EcalUncalibRecHitWorkerBase
 
                 const SampleMatrix & noisecor(bool barrel, int gain) const { return noisecors_[barrel?1:0][gain];}
                 const SampleMatrixGainArray &noisecor(bool barrel) const { return noisecors_[barrel?1:0]; }
-                
+
                 // multifit method
                 std::array<SampleMatrixGainArray, 2> noisecors_;
                 BXVector activeBX;
                 bool ampErrorCalculation_;
                 bool useLumiInfoRunHeader_;
                 EcalUncalibRecHitMultiFitAlgo multiFitMethod_;
-                
+
 		int bunchSpacingManual_;
-                edm::EDGetTokenT<unsigned int> bunchSpacing_; 
+                edm::EDGetTokenT<unsigned int> bunchSpacing_;
 
                 // determine which of the samples must actually be used by ECAL local reco
-                edm::ESHandle<EcalSampleMask> sampleMaskHand_;                
-                
+                edm::ESHandle<EcalSampleMask> sampleMaskHand_;
+
                 // time algorithm to be used to set the jitter and its uncertainty
-                enum TimeAlgo {noMethod, ratioMethod, weightsMethod};
+                enum TimeAlgo {noMethod, ratioMethod, weightsMethod, weightsMethodnoOOT, kansasMethod};
                 TimeAlgo timealgo_=noMethod;
 
                 // time weights method
@@ -103,12 +103,12 @@ class EcalUncalibRecHitWorkerMultiFit final : public EcalUncalibRecHitWorkerBase
                 bool simplifiedNoiseModelForGainSwitch_;
 
                 // ratio method
-                std::vector<double> EBtimeFitParameters_; 
-                std::vector<double> EEtimeFitParameters_; 
-                std::vector<double> EBamplitudeFitParameters_; 
-                std::vector<double> EEamplitudeFitParameters_; 
-                std::pair<double,double> EBtimeFitLimits_;  
-                std::pair<double,double> EEtimeFitLimits_;  
+                std::vector<double> EBtimeFitParameters_;
+                std::vector<double> EEtimeFitParameters_;
+                std::vector<double> EBamplitudeFitParameters_;
+                std::vector<double> EEamplitudeFitParameters_;
+                std::pair<double,double> EBtimeFitLimits_;
+                std::pair<double,double> EEtimeFitLimits_;
 
                 EcalUncalibRecHitRatioMethodAlgo<EBDataFrame> ratioMethod_barrel_;
                 EcalUncalibRecHitRatioMethodAlgo<EEDataFrame> ratioMethod_endcap_;
