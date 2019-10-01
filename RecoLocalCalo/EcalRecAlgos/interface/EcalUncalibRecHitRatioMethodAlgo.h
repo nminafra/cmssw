@@ -67,7 +67,8 @@ template <class C> class EcalUncalibRecHitRatioMethodAlgo {
             const double *gainRatios);
   void computeTime(std::vector<double> &timeFitParameters,
                    std::pair<double, double> &timeFitLimits,
-                   std::vector<double> &amplitudeFitParameters);
+                   std::vector<double> &amplitudeFitParameters,
+                   const std::vector<double> &amplitudeCorrections = std::vector<double>());
   void computeAmplitude(std::vector<double> &amplitudeFitParameters);
   CalculatedRecHit getCalculatedRecHit() { return calculatedRechit_; }
   bool fixMGPAslew(const C &dataFrame);
@@ -224,7 +225,8 @@ template <class C>
 void EcalUncalibRecHitRatioMethodAlgo<C>::computeTime(
     std::vector<double> &timeFitParameters,
     std::pair<double, double> &timeFitLimits,
-    std::vector<double> &amplitudeFitParameters) {
+    std::vector<double> &amplitudeFitParameters,
+    const std::vector<double> &amplitudeCorrections ) {
   //////////////////////////////////////////////////////////////
   //                                                          //
   //              RATIO METHOD FOR TIME STARTS HERE           //
@@ -243,6 +245,12 @@ void EcalUncalibRecHitRatioMethodAlgo<C>::computeTime(
   double sumAf = 0;
   double sumff = 0;
   double NullChi2 = 0;
+
+  if (amplitudeCorrections.size() == amplitudes_.size()) {
+    for (unsigned int i = 0; i < amplitudes_.size(); i++) {
+      amplitudes_[i] -= amplitudeCorrections[i];
+    }
+  }
 
   // null hypothesis = no pulse, pedestal only
   for (unsigned int i = 0; i < amplitudes_.size(); i++) {

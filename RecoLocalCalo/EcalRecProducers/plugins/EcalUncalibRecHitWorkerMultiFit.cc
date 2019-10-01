@@ -67,6 +67,7 @@ EcalUncalibRecHitWorkerMultiFit::EcalUncalibRecHitWorkerMultiFit(const edm::Para
   if(timeAlgoName=="RatioMethod") timealgo_=ratioMethod;
   else if(timeAlgoName=="WeightsMethod") timealgo_=weightsMethod;
   else if(timeAlgoName=="WeightsMethodnoOOT") timealgo_=weightsMethodnoOOT;
+  else if(timeAlgoName=="RatioMethodOOT") timealgo_=ratioMethodOOT;
   else if(timeAlgoName=="Kansas") timealgo_=kansasMethod;
   else if(timeAlgoName!="None")
    edm::LogError("EcalUncalibRecHitError") << "No time estimation algorithm defined";
@@ -381,13 +382,21 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
             auto & uncalibRecHit = result.back();
 
             // === time computation ===
-            if (timealgo_ == ratioMethod) {
+            if (timealgo_ == ratioMethod || timealgo_ == ratioMethodOOT) {
+                std::vector<double> amplitudes;
+                if (timealgo_ == ratioMethodOOT) {
+                  for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
+                }
+                else {
+                  for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(0);
+                }
+
                 // ratio method
                 constexpr float clockToNsConstant = 25.;
                 constexpr float invClockToNs = 1./clockToNsConstant;
                 if (not barrel) {
                     ratioMethod_endcap_.init( *itdg, *sampleMask_, pedVec, pedRMSVec, gainRatios );
-                    ratioMethod_endcap_.computeTime( EEtimeFitParameters_, EEtimeFitLimits_, EEamplitudeFitParameters_ );
+                    ratioMethod_endcap_.computeTime( EEtimeFitParameters_, EEtimeFitLimits_, EEamplitudeFitParameters_, amplitudes );
                     ratioMethod_endcap_.computeAmplitude( EEamplitudeFitParameters_);
                     EcalUncalibRecHitRatioMethodAlgo<EEDataFrame>::CalculatedRecHit crh = ratioMethod_endcap_.getCalculatedRecHit();
                     double theTimeCorrectionEE = timeCorrection(uncalibRecHit.amplitude(),
@@ -425,7 +434,7 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 } else {
                     ratioMethod_barrel_.init( *itdg, *sampleMask_, pedVec, pedRMSVec, gainRatios );
                     ratioMethod_barrel_.fixMGPAslew(*itdg);
-                    ratioMethod_barrel_.computeTime( EBtimeFitParameters_, EBtimeFitLimits_, EBamplitudeFitParameters_ );
+                    ratioMethod_barrel_.computeTime( EBtimeFitParameters_, EBtimeFitLimits_, EBamplitudeFitParameters_, amplitudes );
                     ratioMethod_barrel_.computeAmplitude( EBamplitudeFitParameters_);
                     EcalUncalibRecHitRatioMethodAlgo<EBDataFrame>::CalculatedRecHit crh = ratioMethod_barrel_.getCalculatedRecHit();
 
