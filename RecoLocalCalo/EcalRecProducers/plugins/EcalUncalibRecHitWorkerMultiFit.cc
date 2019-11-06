@@ -479,7 +479,9 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                   for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
                 }
                 else {
+                  // for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) std::cout<<"NICKLOG: Bx "<<ibx <<"\t\tootA "<<uncalibRecHit.outOfTimeAmplitude(ibx)<<std::endl;
                   for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(0);
+                  // amplitudes[5] = uncalibRecHit.outOfTimeAmplitude(5);
                 }
 
                 EcalTBWeights::EcalTDCId tdcid(1);
@@ -516,95 +518,43 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
 
             } else if (timealgo_ == kansasMethod) {
 
-              const EcalDataFrame& dataFrame = *itdg; //EBDataFrame or EEDataFrame
+              double seedTime = .0;
 
-              std::vector<double> amplitudes;
-              for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
+              // ratio method for starting point
+              std::vector<double> amplitudes(activeBX.size(),.0);
+              constexpr float clockToNsConstant = 25.;
+              if (not barrel) {
+                  ratioMethod_endcap_.init( *itdg, *sampleMask_, pedVec, pedRMSVec, gainRatios );
+                  ratioMethod_endcap_.computeTime( EEtimeFitParameters_, EEtimeFitLimits_, EEamplitudeFitParameters_, amplitudes );
+                  ratioMethod_endcap_.computeAmplitude( EEamplitudeFitParameters_);
+                  EcalUncalibRecHitRatioMethodAlgo<EEDataFrame>::CalculatedRecHit crh = ratioMethod_endcap_.getCalculatedRecHit();
+                  double theTimeCorrectionEE = timeCorrection(uncalibRecHit.amplitude(),
+                                                              timeCorrBias_->EETimeCorrAmplitudeBins, timeCorrBias_->EETimeCorrShiftBins);
 
-              const unsigned int nsample = EcalDataFrame::MAXSAMPLES;
+                  seedTime = crh.timeMax - 5 + theTimeCorrectionEE;
+              } else {
+                  ratioMethod_barrel_.init( *itdg, *sampleMask_, pedVec, pedRMSVec, gainRatios );
+                  ratioMethod_barrel_.fixMGPAslew(*itdg);
+                  ratioMethod_barrel_.computeTime( EBtimeFitParameters_, EBtimeFitLimits_, EBamplitudeFitParameters_, amplitudes );
+                  ratioMethod_barrel_.computeAmplitude( EBamplitudeFitParameters_);
+                  EcalUncalibRecHitRatioMethodAlgo<EBDataFrame>::CalculatedRecHit crh = ratioMethod_barrel_.getCalculatedRecHit();
 
-              double maxamplitude = -std::numeric_limits<double>::max();
+                  double theTimeCorrectionEB = timeCorrection(uncalibRecHit.amplitude(),
+                                                              timeCorrBias_->EBTimeCorrAmplitudeBins, timeCorrBias_->EBTimeCorrShiftBins);
 
-              double pulsenorm = 0.;
-              // int iGainSwitch = 0;
-
-              ROOT::Math::SVector<double,nsample> pedSubSamples;
-              for(unsigned int iSample = 0; iSample < nsample; iSample++) {
-
-                const EcalMGPASample &sample = dataFrame.sample(iSample);
-
-                double amplitude = 0.;
-                int gainId = sample.gainId();
-
-                double pedestal = 0.;
-                double gainratio = 1.;
-
-                if (gainId==0 || gainId==3) {
-                  pedestal = aped->mean_x1;
-                  gainratio = aGain->gain6Over1()*aGain->gain12Over6();
-                  // iGainSwitch = 1;
-                }
-                else if (gainId==1) {
-                  pedestal = aped->mean_x12;
-                  gainratio = 1.;
-                  // iGainSwitch = 0;
-                }
-                else if (gainId==2) {
-                  pedestal = aped->mean_x6;
-                  gainratio = aGain->gain12Over6();
-                  // iGainSwitch = 1;
-                }
-
-                amplitude = ((double)(sample.adc()) - pedestal) * gainratio;
-
-                if (gainId == 0) {
-                  //saturation
-                  amplitude = (4095. - pedestal) * gainratio;
-                }
-
-                pedSubSamples(iSample) = amplitude;
-
-                if (amplitude>maxamplitude) {
-                  maxamplitude = amplitude;
-                }
-                pulsenorm += fullpulse(iSample);
+                  seedTime = crh.timeMax - 5 + theTimeCorrectionEB;
               }
 
-              for(auto amplit=amplitudes.begin(); amplit<amplitudes.end(); ++amplit) {
-                int ipulse = std::distance(amplitudes.begin(),amplit);
-                int bx = ipulse - 5;
-                int firstsamplet = std::max(0,bx + 3);
-                int offset = 7-3-bx;
-
-                TVectorD pulse;
-                pulse.ResizeTo(nsample);
-                for (unsigned int isample = firstsamplet; isample<nsample; ++isample) {
-                  pulse(isample) = fullpulse(isample+offset);
-                  pedSubSamples(isample) = std::max(0., pedSubSamples(isample) - amplitudes[ipulse]*pulse(isample)/pulsenorm);
-                }
-              }
-
-              double maxOfpedSubSamples = 0.;
-              for (unsigned int isample = 0; isample<nsample; ++isample) {
-                if (pedSubSamples(isample)>maxOfpedSubSamples)
-                  maxOfpedSubSamples = pedSubSamples(isample);
-              }
-              for (unsigned int isample = 0; isample<nsample; ++isample) {
-                  pedSubSamples(isample) = pedSubSamples(isample)/maxOfpedSubSamples;
-              }
-
-              // std::cout << "PLOTS\t";
-              // for (unsigned int isample = 0; isample<nsample; ++isample) {
-              //   std::cout<< std::setw(10)<<pedSubSamples(isample)<<"\t";
-              // }
-              // std::cout << std::endl;
 
 
-              // Compute parameters
-              double jitter_(0.);
 
-              uncalibRecHit.setJitter( jitter_ );
-              uncalibRecHit.setJitterError( 0. ); // not computed with weights
+              float tempt = 0;
+
+              tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, seedTime-5, seedTime+5, 0.05);
+
+              uncalibRecHit.setJitter( tempt );
+              uncalibRecHit.setJitterError( .05 ); // not computed with weights
+              // std::cout<<"NICKLOG: t: "<<tempt<<std::endl;
             }
 
         }
