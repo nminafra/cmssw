@@ -26,7 +26,10 @@ class EcalUncalibRecHitMultiFitAlgo
   EcalUncalibRecHitMultiFitAlgo();
   ~EcalUncalibRecHitMultiFitAlgo() { };
   EcalUncalibratedRecHit makeRecHit(const EcalDataFrame& dataFrame, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const SampleMatrixGainArray &noisecors, const FullSampleVector &fullpulse, const FullSampleMatrix &fullpulsecov, const BXVector &activeBX);
+
   double computeTime(const EcalDataFrame& dataFrame, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const SampleMatrixGainArray &noisecors, const FullSampleVector &fullpulse, const FullSampleMatrix &fullpulsecov, const BXVector &activeBX, const float startTime=-5, const float stopTime=5, const float stepTime=0.1);
+  double computeTimeCC(const EcalDataFrame& dataFrame, const std::vector<double> &amplitudes, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const FullSampleVector &fullpulse, const float startTime=-5, const float stopTime=5, const float stepTime=0.1);
+
   void disableErrorCalculation() { _computeErrors = false; }
   void setDoPrefit(bool b) { _doPrefit = b; }
   void setPrefitMaxChiSq(double x) { _prefitMaxChiSq = x; }

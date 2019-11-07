@@ -225,7 +225,6 @@ EcalUncalibratedRecHit EcalUncalibRecHitMultiFitAlgo::makeRecHit(const EcalDataF
   return rh;
 }
 
-/// compute rechits
 double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const SampleMatrixGainArray &noisecors, const FullSampleVector &fullpulse, const FullSampleMatrix &fullpulsecov, const BXVector &activeBX, const float startTime, const float stopTime, const float stepTime) {
   uint32_t flags = 0;
 
@@ -372,7 +371,6 @@ double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame
   if(!_computeErrors) _pulsefunc.disableErrorCalculation();
   _pulsefunc.DoFit(amplitudes,noisecov,activeBX,fullpulse,fullpulsecov,gainsPedestal,badSamples);
   chisq = _pulsefunc.ChiSq();
-  double chisqPrev = chisq;
   // std::cout<<"NICKLOG PULSE: ";
   // for (int i=0;i<fullpulse.size(); ++i) {
   //   std::cout<<fullpulse[i]<<" ";
@@ -400,6 +398,119 @@ double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame
 
   // std::cout<<"NICKLOG: selected fit: shift "<< tMin <<" ns\tChiSq "<< minChisq << "\t vs prev chisq "<< chisqPrev << std::endl;
   return tMin;
+}
+
+double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFrame, const std::vector<double> &amplitudes, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const FullSampleVector &fullpulse, const float startTime, const float stopTime, const float stepTime) {
+  const unsigned int nsample = EcalDataFrame::MAXSAMPLES;
+
+  double maxamplitude = -std::numeric_limits<double>::max();
+
+  double pulsenorm = 0.;
+
+  std::vector<double> pedSubSamples(nsample);
+  for(unsigned int iSample = 0; iSample < nsample; iSample++) {
+
+    const EcalMGPASample &sample = dataFrame.sample(iSample);
+
+    double amplitude = 0.;
+    int gainId = sample.gainId();
+
+    double pedestal = 0.;
+    double gainratio = 1.;
+
+    if (gainId==0 || gainId==3) {
+      pedestal = aped->mean_x1;
+      gainratio = aGain->gain6Over1()*aGain->gain12Over6();
+    }
+    else if (gainId==1) {
+      pedestal = aped->mean_x12;
+      gainratio = 1.;
+    }
+    else if (gainId==2) {
+      pedestal = aped->mean_x6;
+      gainratio = aGain->gain12Over6();
+    }
+
+    amplitude = ((double)(sample.adc()) - pedestal) * gainratio;
+
+    if (gainId == 0) {
+      //saturation
+      amplitude = (4095. - pedestal) * gainratio;
+    }
+
+    pedSubSamples.at(iSample) = amplitude;
+
+    if (amplitude>maxamplitude) {
+      maxamplitude = amplitude;
+    }
+    pulsenorm += fullpulse(iSample);
+  }
+
+  // std::vector<double>::const_iterator amplit;
+  // for(amplit=amplitudes.begin(); amplit<amplitudes.end(); ++amplit) {
+  //   int ipulse = std::distance(amplitudes.begin(),amplit);
+  //   int bx = ipulse - 5;
+  //   int firstsamplet = std::max(0,bx + 3);
+  //   int offset = 7-3-bx;
+  //
+  //   TVectorD pulse;
+  //   pulse.ResizeTo(nsample);
+  //   for (unsigned int isample = firstsamplet; isample<nsample; ++isample) {
+  //     pulse(isample) = fullpulse(isample+offset);
+  //     pedSubSamples(isample) = std::max(0., pedSubSamples(isample) - amplitudes[ipulse]*pulse(isample)/pulsenorm);
+  //   }
+  // }
+
+
+
+  // std::cout<<"NICKLOG input: ";
+  // for (unsigned int i=0;i<pedSubSamples.size(); ++i) {
+  //   std::cout<<pedSubSamples[i]<<" ";
+  // }
+  // std::cout<<std::endl;
+
+  double minDist=100000;
+  double tMin = -100;
+
+  //find shift:
+  int shift=0;
+  for (int s=0; s<10; ++s) {
+    double dist = .0;
+    for (unsigned int i=0; i<pedSubSamples.size(); ++i){
+      if (i+s>fullpulse.size()) break;
+      dist += std::pow(fullpulse[i+s]-pedSubSamples[i],2);
+    }
+    if (dist < minDist) {
+      minDist = dist;
+      shift = s;
+    }
+  }
+  // std::cout<<"NICKLOG: shift "<< shift << std::endl;
+
+  for (double t = startTime; t < stopTime; t += stepTime) {
+    auto interpolated = interpolate(fullpulse, t);
+    double dist = .0;
+
+    for (unsigned int i=0; i<pedSubSamples.size(); ++i){
+      if (i+shift>interpolated.size()) break;
+      dist += std::pow(interpolated[i+shift]-pedSubSamples[i],2);
+    }
+    // std::cout<<"NICKLOG: t: "<< t <<" ns\tdist "<< dist << std::endl;
+    if (dist < minDist) {
+      // std::cout<<"NICKLOG: "<< chisq <<" < "<< minChisq << std::endl;
+      minDist = dist;
+      tMin = t;
+    }
+    // std::cout<<"NICKLOG PULSE tshift "<< t <<" ns: ";
+  //   auto ipulse = interpolate(fullpulse, t);
+  //   for (int i=0;i<ipulse.size(); ++i) {
+  //     std::cout<<ipulse[i]<<" ";
+  //   }
+  //   std::cout<<std::endl;
+  }
+
+  // std::cout<<"NICKLOG: selected fit: shift "<< tMin <<" ns\tChiSq "<< minChisq << "\t vs prev chisq "<< chisqPrev << std::endl;
+  return tMin + (shift-5)*25.;
 }
 
 FullSampleVector EcalUncalibRecHitMultiFitAlgo::interpolate(const FullSampleVector& fullpulse, const float t){
