@@ -69,6 +69,7 @@ EcalUncalibRecHitWorkerMultiFit::EcalUncalibRecHitWorkerMultiFit(const edm::Para
   else if(timeAlgoName=="WeightsMethodnoOOT") timealgo_=weightsMethodnoOOT;
   else if(timeAlgoName=="RatioMethodOOT") timealgo_=ratioMethodOOT;
   else if(timeAlgoName=="Kansas") timealgo_=kansasMethod;
+  else if(timeAlgoName=="KansasCC") timealgo_=kansasMethodCC;
   else if(timeAlgoName!="None")
    edm::LogError("EcalUncalibRecHitError") << "No time estimation algorithm defined";
 
@@ -325,8 +326,12 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
         double pedRMSVec[3]  = { aped->rms_x12,  aped->rms_x6,  aped->rms_x1 };
         double gainRatios[3] = { 1., aGain->gain12Over6(), aGain->gain6Over1()*aGain->gain12Over6()};
 
-        for (int i=0; i<EcalPulseShape::TEMPLATESAMPLES; ++i)
+        // std::cout << "PLOTP ";
+        for (int i=0; i<EcalPulseShape::TEMPLATESAMPLES; ++i) {
             fullpulse(i+7) = aPulse->pdfval[i];
+            // std::cout << aPulse->pdfval[i] << "\t";
+          }
+          // std::cout << std::endl;
 
         for(int i=0; i<EcalPulseShape::TEMPLATESAMPLES;i++)
         for(int j=0; j<EcalPulseShape::TEMPLATESAMPLES;j++)
@@ -381,10 +386,10 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
             if (timealgo_ == ratioMethod || timealgo_ == ratioMethodOOT) {
                 std::vector<double> amplitudes;
                 if (timealgo_ == ratioMethodOOT) {
-                 for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
+                  for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
                 }
                 else {
-                 for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(0);
+                  for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(0);
                 }
 
                 // ratio method
@@ -475,7 +480,9 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                   for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
                 }
                 else {
+                  // for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) std::cout<<"NICKLOG: Bx "<<ibx <<"\t\tootA "<<uncalibRecHit.outOfTimeAmplitude(ibx)<<std::endl;
                   for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(0);
+                  // amplitudes[5] = uncalibRecHit.outOfTimeAmplitude(5);
                 }
 
                 EcalTBWeights::EcalTDCId tdcid(1);
@@ -503,15 +510,62 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 } else {
                     timerh = weightsMethod_barrel_.time( *itdg, amplitudes, aped, aGain, fullpulse, weights);
                 }
+                // for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) {
+                //   std::cout<<uncalibRecHit.outOfTimeAmplitude(ibx)<<"\t";
+                // }
+                // std::cout<< "\nTime: " << timerh << std::endl;
                 uncalibRecHit.setJitter( timerh );
                 uncalibRecHit.setJitterError( 0. ); // not computed with weights
 
-            } else if (timealgo_ == kansasMethod) {
-              // TODO
-            }  else { // no time method;
-                uncalibRecHit.setJitter( 0. );
-                uncalibRecHit.setJitterError( 0. );
+            } else if (timealgo_ == kansasMethod || timealgo_ == kansasMethodCC) {
+
+              double seedTime = .0;
+
+              // ratio method for starting point
+              std::vector<double> amplitudes(activeBX.size(),.0);
+              if (not barrel) {
+                  ratioMethod_endcap_.init( *itdg, *sampleMask_, pedVec, pedRMSVec, gainRatios );
+                  ratioMethod_endcap_.computeTime( EEtimeFitParameters_, EEtimeFitLimits_, EEamplitudeFitParameters_, amplitudes );
+                  ratioMethod_endcap_.computeAmplitude( EEamplitudeFitParameters_);
+                  EcalUncalibRecHitRatioMethodAlgo<EEDataFrame>::CalculatedRecHit crh = ratioMethod_endcap_.getCalculatedRecHit();
+                  double theTimeCorrectionEE = timeCorrection(uncalibRecHit.amplitude(),
+                                                              timeCorrBias_->EETimeCorrAmplitudeBins, timeCorrBias_->EETimeCorrShiftBins);
+
+                  seedTime = crh.timeMax - 5 + theTimeCorrectionEE;
+              } else {
+                  ratioMethod_barrel_.init( *itdg, *sampleMask_, pedVec, pedRMSVec, gainRatios );
+                  ratioMethod_barrel_.fixMGPAslew(*itdg);
+                  ratioMethod_barrel_.computeTime( EBtimeFitParameters_, EBtimeFitLimits_, EBamplitudeFitParameters_, amplitudes );
+                  ratioMethod_barrel_.computeAmplitude( EBamplitudeFitParameters_);
+                  EcalUncalibRecHitRatioMethodAlgo<EBDataFrame>::CalculatedRecHit crh = ratioMethod_barrel_.getCalculatedRecHit();
+
+                  double theTimeCorrectionEB = timeCorrection(uncalibRecHit.amplitude(),
+                                                              timeCorrBias_->EBTimeCorrAmplitudeBins, timeCorrBias_->EBTimeCorrShiftBins);
+
+                  seedTime = crh.timeMax - 5 + theTimeCorrectionEB;
+              }
+
+
+              float step=.05;
+              float tempt = 0;
+              if (timealgo_ == kansasMethod) {
+                tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, seedTime-5, seedTime+5, step);
+
+                uncalibRecHit.setJitter( tempt );
+                uncalibRecHit.setJitterError( step ); // not computed with weights
+              }
+              else {
+                std::vector<double> amplitudes;
+                for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
+                tempt = multiFitMethod_.computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, seedTime-5, seedTime+5, step);
+
+                uncalibRecHit.setJitter( tempt );
+                uncalibRecHit.setJitterError( step ); // not computed with weights
+              }
+
+              // std::cout<<"NICKLOG: t: "<<tempt<<std::endl;
             }
+
         }
 
 	// set flags if gain switch has occurred

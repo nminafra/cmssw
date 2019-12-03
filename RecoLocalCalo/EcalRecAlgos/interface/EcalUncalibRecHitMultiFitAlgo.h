@@ -20,12 +20,16 @@
 
 class EcalUncalibRecHitMultiFitAlgo
 {
-  
+
  public:
-  
+
   EcalUncalibRecHitMultiFitAlgo();
   ~EcalUncalibRecHitMultiFitAlgo() { };
   EcalUncalibratedRecHit makeRecHit(const EcalDataFrame& dataFrame, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const SampleMatrixGainArray &noisecors, const FullSampleVector &fullpulse, const FullSampleMatrix &fullpulsecov, const BXVector &activeBX);
+
+  double computeTime(const EcalDataFrame& dataFrame, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const SampleMatrixGainArray &noisecors, const FullSampleVector &fullpulse, const FullSampleMatrix &fullpulsecov, const BXVector &activeBX, const float startTime=-5, const float stopTime=5, const float stepTime=0.1);
+  double computeTimeCC(const EcalDataFrame& dataFrame, const std::vector<double> &amplitudes, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const FullSampleVector &fullpulse, const float startTime=-5, const float stopTime=5, const float stepTime=0.1);
+
   void disableErrorCalculation() { _computeErrors = false; }
   void setDoPrefit(bool b) { _doPrefit = b; }
   void setPrefitMaxChiSq(double x) { _prefitMaxChiSq = x; }
@@ -35,8 +39,9 @@ class EcalUncalibRecHitMultiFitAlgo
   void setAddPedestalUncertainty(double x) { _addPedestalUncertainty = x; }
   void setSimplifiedNoiseModelForGainSwitch(bool b) { _simplifiedNoiseModelForGainSwitch = b; }
   void setGainSwitchUseMaxSample(bool b) { _gainSwitchUseMaxSample = b; }
-  
+
  private:
+   FullSampleVector interpolate(const FullSampleVector& fullpulse, const float t=0);
    PulseChiSqSNNLS _pulsefunc;
    PulseChiSqSNNLS _pulsefuncSingle;
    bool _computeErrors;
