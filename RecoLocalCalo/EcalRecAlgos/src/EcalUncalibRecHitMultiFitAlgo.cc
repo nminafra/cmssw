@@ -474,17 +474,17 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
 
   //find shift:
   int shift=0;
-  for (int s=0; s<10; ++s) {
-    double dist = .0;
-    for (unsigned int i=0; i<pedSubSamples.size(); ++i){
-      if (i+s>fullpulse.size()) break;
-      dist += std::pow(fullpulse[i+s]-pedSubSamples[i],2);
-    }
-    if (dist < minDist) {
-      minDist = dist;
-      shift = s;
-    }
-  }
+  // for (int s=0; s<10; ++s) {
+  //   double dist = .0;
+  //   for (unsigned int i=0; i<pedSubSamples.size(); ++i){
+  //     if (i+s>fullpulse.size()) break;
+  //     dist += std::pow(fullpulse[i+s]-pedSubSamples[i],2);
+  //   }
+  //   if (dist < minDist) {
+  //     minDist = dist;
+  //     shift = s;
+  //   }
+  // }
   // std::cout<<"NICKLOG: shift "<< shift << std::endl;
 
   for (double t = startTime; t < stopTime; t += stepTime) {
@@ -514,6 +514,7 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
 }
 
 FullSampleVector EcalUncalibRecHitMultiFitAlgo::interpolate(const FullSampleVector& fullpulse, const float t){
+  // t is in BX units (25 ns)
   FullSampleVector interpPulse;
   interpPulse[0] = fullpulse[0];
   interpPulse[interpPulse.size()-1] = fullpulse[interpPulse.size()-1];
@@ -523,12 +524,12 @@ FullSampleVector EcalUncalibRecHitMultiFitAlgo::interpolate(const FullSampleVect
   }
   else if (t>0) {
     for (int i=1; i<interpPulse.size()-1; ++i){
-      interpPulse[i] = fullpulse[i] + (t/25.)*(fullpulse[i+1]-fullpulse[i]);
+      interpPulse[i] = fullpulse[i] + t*(fullpulse[i+1]-fullpulse[i]);
     }
   }
   else {
     for (int i=1; i<interpPulse.size()-1; ++i){
-      interpPulse[i] = fullpulse[i-1] + (t/25.+1)*(fullpulse[i]-fullpulse[i-1]);
+      interpPulse[i] = fullpulse[i-1] + (t+1)*(fullpulse[i]-fullpulse[i-1]);
     }
   }
   return interpPulse;

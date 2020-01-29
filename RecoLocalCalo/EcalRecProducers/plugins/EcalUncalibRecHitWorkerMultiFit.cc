@@ -546,10 +546,10 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
               }
 
 
-              float step=.05;
+              float step=.05/25.;
               float tempt = 0;
               if (timealgo_ == kansasMethod) {
-                tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, seedTime-5, seedTime+5, step);
+                tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, seedTime-1, seedTime+1, step);
 
                 uncalibRecHit.setJitter( tempt );
                 uncalibRecHit.setJitterError( step ); // not computed with weights
@@ -557,7 +557,7 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
               else {
                 std::vector<double> amplitudes;
                 for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
-                tempt = multiFitMethod_.computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, seedTime-5, seedTime+5, step);
+                tempt = multiFitMethod_.computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, seedTime-1, seedTime+1, step);
 
                 uncalibRecHit.setJitter( tempt );
                 uncalibRecHit.setJitterError( step ); // not computed with weights
