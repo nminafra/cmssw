@@ -515,7 +515,7 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 // }
                 // std::cout<< "\nTime: " << timerh << std::endl;
                 uncalibRecHit.setJitter( timerh );
-                uncalibRecHit.setJitterError( 0. ); // not computed with weights
+                uncalibRecHit.setJitterError( 0.001 ); // not computed with weights
 
             } else if (timealgo_ == kansasMethod || timealgo_ == kansasMethodCC) {
 
