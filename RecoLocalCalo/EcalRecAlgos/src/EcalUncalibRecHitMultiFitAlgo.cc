@@ -487,7 +487,7 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
   // }
   // std::cout<<"NICKLOG: shift "<< shift << std::endl;
 
-  for (double t = startTime; t < stopTime; t += stepTime) {
+  for (double t = startTime; t <= stopTime; t += stepTime) {
     auto interpolated = interpolate(fullpulse, t);
     double dist = .0;
 
@@ -508,6 +508,10 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
   //   }
   //   std::cout<<std::endl;
   }
+
+  if (tMin <= startTime || tMin > stopTime-stepTime)
+    tMin = -100;
+
 
   // std::cout<<"NICKLOG: selected fit: shift "<< tMin <<" ns\tChiSq "<< minChisq << "\t vs prev chisq "<< chisqPrev << std::endl;
   return tMin + (shift-5)*25.;

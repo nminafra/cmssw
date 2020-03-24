@@ -552,7 +552,10 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, seedTime-1, seedTime+1, step);
 
                 uncalibRecHit.setJitter( tempt );
-                uncalibRecHit.setJitterError( step ); // not computed with weights
+                if (tempt == -100)
+                  uncalibRecHit.setJitterError( 0 ); 
+                else
+                  uncalibRecHit.setJitterError( step );
               }
               else {
                 std::vector<double> amplitudes;
@@ -560,7 +563,10 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 tempt = multiFitMethod_.computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, seedTime-1, seedTime+1, step);
 
                 uncalibRecHit.setJitter( tempt );
-                uncalibRecHit.setJitterError( step ); // not computed with weights
+                if (tempt == -100)
+                  uncalibRecHit.setJitterError( 0 ); 
+                else
+                  uncalibRecHit.setJitterError( step );
               }
 
               // std::cout<<"NICKLOG: t: "<<tempt<<std::endl;
