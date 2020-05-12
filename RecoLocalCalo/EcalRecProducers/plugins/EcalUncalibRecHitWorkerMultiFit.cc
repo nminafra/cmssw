@@ -569,10 +569,10 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 #endif
 
                 uncalibRecHit.setJitter( tempt );
-                if (tempt == -100)
-                  uncalibRecHit.setJitterError( 0 ); 
+                if (tempt > 80)
+                  uncalibRecHit.setJitterError( -step/25 ); 
                 else
-                  uncalibRecHit.setJitterError( step );
+                  uncalibRecHit.setJitterError( step/25 );
               }
               if (timealgo_ == kansasMethodCC) {
                 std::vector<double> amplitudes;
@@ -585,10 +585,10 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 #endif
 
                 uncalibRecHit.setJitter( tempt );
-                if (tempt == -100)
-                  uncalibRecHit.setJitterError( 0 ); 
+                if (tempt > 80)
+                  uncalibRecHit.setJitterError( -step/25 ); 
                 else
-                  uncalibRecHit.setJitterError( step );
+                  uncalibRecHit.setJitterError( step/25 );
               }
             }
 
