@@ -1,5 +1,7 @@
 #include "RecoLocalCalo/EcalRecProducers/plugins/EcalUncalibRecHitWorkerMultiFit.h"
 
+#define KUDEBUG false
+
 #include "FWCore/Framework/interface/EventSetup.h"
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/Run.h"
@@ -326,16 +328,32 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
         double pedRMSVec[3]  = { aped->rms_x12,  aped->rms_x6,  aped->rms_x1 };
         double gainRatios[3] = { 1., aGain->gain12Over6(), aGain->gain6Over1()*aGain->gain12Over6()};
 
-        // std::cout << "PLOTP ";
-        for (int i=0; i<EcalPulseShape::TEMPLATESAMPLES; ++i) {
-            fullpulse(i+7) = aPulse->pdfval[i];
-            // std::cout << aPulse->pdfval[i] << "\t";
-          }
-          // std::cout << std::endl;
+        #if KUDEBUG == true
+          std::cout<<"KUTimeLOG: INITPULSE ";
+          for (int i=0; i<EcalPulseShape::TEMPLATESAMPLES; ++i) {
+              fullpulse(i+7) = aPulse->pdfval[i];
+              std::cout<<aPulse->pdfval[i] << " ";
+            }
+            std::cout<<std::endl;
 
-        for(int i=0; i<EcalPulseShape::TEMPLATESAMPLES;i++)
-        for(int j=0; j<EcalPulseShape::TEMPLATESAMPLES;j++)
-            fullpulsecov(i+7,j+7) = aPulseCov->covval[i][j];
+          std::cout<<"KUTimeLOG: INITCOV ";
+          for(int i=0; i<EcalPulseShape::TEMPLATESAMPLES;i++) {
+          for(int j=0; j<EcalPulseShape::TEMPLATESAMPLES;j++) {
+              fullpulsecov(i+7,j+7) = aPulseCov->covval[i][j];
+              std::cout<< i << " "<< j << " "<< aPulseCov->covval[i][j] << " ";
+            } 
+          }
+          std::cout<<std::endl;
+        #else
+          for (int i=0; i<EcalPulseShape::TEMPLATESAMPLES; ++i)
+              fullpulse(i+7) = aPulse->pdfval[i];
+
+          for(int i=0; i<EcalPulseShape::TEMPLATESAMPLES;i++) {
+          for(int j=0; j<EcalPulseShape::TEMPLATESAMPLES;j++) {
+              fullpulsecov(i+7,j+7) = aPulseCov->covval[i][j];
+            }
+          }
+        #endif
 
 	// compute the right bin of the pulse shape using time calibration constants
 	EcalTimeCalibConstantMap::const_iterator it = itime->find( detid );
@@ -402,7 +420,6 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                     EcalUncalibRecHitRatioMethodAlgo<EEDataFrame>::CalculatedRecHit crh = ratioMethod_endcap_.getCalculatedRecHit();
                     double theTimeCorrectionEE = timeCorrection(uncalibRecHit.amplitude(),
                                                                 timeCorrBias_->EETimeCorrAmplitudeBins, timeCorrBias_->EETimeCorrShiftBins);
-
                     uncalibRecHit.setJitter( crh.timeMax - 5 + theTimeCorrectionEE);
                     uncalibRecHit.setJitterError( std::sqrt(std::pow(crh.timeError,2) + std::pow(EEtimeConstantTerm_*invClockToNs,2)) );
 
@@ -442,6 +459,7 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                     double theTimeCorrectionEB = timeCorrection(uncalibRecHit.amplitude(),
                                                                 timeCorrBias_->EBTimeCorrAmplitudeBins, timeCorrBias_->EBTimeCorrShiftBins);
 
+                    // std::cout<<"KUTimeLOG: RatioEB "<<crh.timeMax - 5 + theTimeCorrectionEB<<std::endl;
                     uncalibRecHit.setJitter( crh.timeMax - 5 + theTimeCorrectionEB);
                     uncalibRecHit.setJitterError( std::hypot(crh.timeError, EBtimeConstantTerm_ / clockToNsConstant) );
 
@@ -510,10 +528,6 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 } else {
                     timerh = weightsMethod_barrel_.time( *itdg, amplitudes, aped, aGain, fullpulse, weights);
                 }
-                // for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) {
-                //   std::cout<<uncalibRecHit.outOfTimeAmplitude(ibx)<<"\t";
-                // }
-                // std::cout<< "\nTime: " << timerh << std::endl;
                 uncalibRecHit.setJitter( timerh );
                 uncalibRecHit.setJitterError( 0.001 ); // not computed with weights
 
@@ -546,10 +560,13 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
               }
 
 
-              float step=.05/25.;
+              float step=0.01;
               float tempt = 0;
               if (timealgo_ == kansasMethod) {
-                tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, seedTime-1, seedTime+1, step);
+                tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, 0*seedTime-50,0*seedTime+50, step);
+                #if KUDEBUG == true
+                  std::cout<<"KUTimeLOG: KU seed: "<<seedTime<<"  t: "<<tempt<<std::endl;
+                #endif
 
                 uncalibRecHit.setJitter( tempt );
                 if (tempt == -100)
@@ -557,10 +574,15 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 else
                   uncalibRecHit.setJitterError( step );
               }
-              else {
+              if (timealgo_ == kansasMethodCC) {
                 std::vector<double> amplitudes;
                 for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
-                tempt = multiFitMethod_.computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, seedTime-1, seedTime+1, step);
+                // seedTime = 0;
+                tempt = multiFitMethod_.computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, 0*seedTime-50,0*seedTime+50, step);
+
+                #if KUDEBUG == true
+                  std::cout<<"KUTimeLOG: KUCC seed: "<<seedTime<<"  t: "<<tempt<<std::endl;
+                #endif
 
                 uncalibRecHit.setJitter( tempt );
                 if (tempt == -100)
@@ -568,8 +590,6 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 else
                   uncalibRecHit.setJitterError( step );
               }
-
-              // std::cout<<"NICKLOG: t: "<<tempt<<std::endl;
             }
 
         }
