@@ -563,7 +563,7 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
               float step=0.01;
               float tempt = 0;
               if (timealgo_ == kansasMethod) {
-                tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, 0*seedTime-50,0*seedTime+50, step);
+                tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, 0*seedTime-15,0*seedTime+15, step);
                 #if KUDEBUG == true
                   std::cout<<"KUTimeLOG: KU seed: "<<seedTime<<"  t: "<<tempt<<std::endl;
                 #endif

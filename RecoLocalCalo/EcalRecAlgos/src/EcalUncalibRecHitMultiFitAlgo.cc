@@ -303,8 +303,6 @@ double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame
 
   }
 
-  double chisq;
-
   //special handling for gain switch, where sample before maximum is potentially affected by slew rate limitation
   //optionally apply a stricter criteria, assuming slew rate limit is only reached in case where maximum sample has gain switched but previous sample has not
   //option 1: use simple max-sample algorithm
@@ -372,10 +370,41 @@ double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame
   if(!_computeErrors) _pulsefunc.disableErrorCalculation();
   // _pulsefunc.DoFit(amplitudes,noisecov,activeBX,fullpulse,fullpulsecov,gainsPedestal,badSamples);
 
-  double minChisq=100000;
-  double tMin = -100*25;
+
+
+  
+  float tStart = startTime;
+  float tStop = stopTime;
+  float tM = (tStart+tStop)/2;
+
+  float distStart, distStop;
+  int counter=0;
+  
+  do {
+    ++counter;
+    auto interpolated = interpolate(fullpulse, tStart);
+    _pulsefunc.DoFitKU(amplitudes,noisecov,activeBX,fullpulse,fullpulsecov,interpolated,gainsPedestal,badSamples);
+    distStart = _pulsefunc.ChiSq();
+    interpolated = interpolate(fullpulse, tStop);
+    _pulsefunc.DoFitKU(amplitudes,noisecov,activeBX,fullpulse,fullpulsecov,interpolated,gainsPedestal,badSamples);
+    distStop = _pulsefunc.ChiSq();
+
+    if (distStart < distStop) {
+      tStart = tStart;
+      tStop = tM;
+    }
+    else {
+      tStart = tM;
+      tStop = tStop;
+    }
+    tM = (tStart+tStop)/2;
+
+    } while ( std::abs(distStart - distStop)/distStop > 0.0001 && counter<100 );
+    
+
   
   #if KUDEBUG == true
+    std::cout<<"Counter: " <<counter << " < " << (stopTime-startTime)/stepTime << "\t" << distStart << "\t" << distStop << std::endl;
     std::cout<<"KUTimeLOG: PULSE: ";
     for (int i=0;i<amplitudes.size(); ++i) {
       std::cout<<amplitudes[i]<<" ";
@@ -398,38 +427,37 @@ double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame
       }
     std::cout<<std::endl;
     std::cout<<"KUTimeLOG: DIST ";
-  #endif
+  
 
-  for (double t = startTime; t < stopTime; t += stepTime) {
-    auto interpolated = interpolate(fullpulse, t);
-    auto fullpulsecovTmp = fullpulsecov;
-    int shift = t/25;
-    if (t<0)
-      shift -= 1;
-    if (shift!=0) {
-      for(int i=0; i<12;i++) 
-          for(int j=0; j<12;j++) {
-            if (i+shift>=0 && i+shift<12 && j+shift>=0 && j+shift<12)
-              fullpulsecovTmp(i,j) = fullpulsecov(i+shift,j+shift);
-            else
-              fullpulsecovTmp(i,j) = 0;
-          }            
-    }
+    double minChisq=100000;
+    double tMin = -100*25;
+    double chisq;
+    for (double t = startTime; t < stopTime; t += stepTime) {
+      auto interpolated = interpolate(fullpulse, t);
+      // auto fullpulsecovTmp = fullpulsecov;
+      // int shift = t/25;
+      // if (t<0)
+      //   shift -= 1;
+      // if (shift!=0) {
+      //   for(int i=0; i<12;i++) 
+      //       for(int j=0; j<12;j++) {
+      //         if (i+shift>=0 && i+shift<12 && j+shift>=0 && j+shift<12)
+      //           fullpulsecovTmp(i,j) = fullpulsecov(i+shift,j+shift);
+      //         else
+      //           fullpulsecovTmp(i,j) = 0;
+      //       }            
+      // }
 
-    _pulsefunc.DoFitKU(amplitudes,noisecov,activeBX,fullpulse,fullpulsecovTmp,interpolated,gainsPedestal,badSamples);
-    chisq = _pulsefunc.ChiSq();
-    // chisq = 0;
-    if (chisq < minChisq) {
-      minChisq = chisq;
-      tMin = t;
-    }
-    #if KUDEBUG == true
+      _pulsefunc.DoFitKU(amplitudes,noisecov,activeBX,fullpulse,fullpulsecov,interpolated,gainsPedestal,badSamples);
+      chisq = _pulsefunc.ChiSq();
+      // chisq = 0;
+      if (chisq < minChisq) {
+        minChisq = chisq;
+        tMin = t;
+      }
       std::cout<<chisq<<" ";
-    #endif
-  }
-  #if KUDEBUG == true
-    std::cout<<std::endl
-
+    }
+    std::cout<<std::endl;
 
     int shift = tMin/25;
     if (tMin<0)
@@ -443,7 +471,11 @@ double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame
     std::cout<<std::endl;
   #endif
 
-  return tMin/25;
+  if (counter<2 || counter>90) {  
+    tM = 100*25;
+  }
+
+  return tM/25;
 }
 
 double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFrame, const std::vector<double> &amplitudes, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const FullSampleVector &fullpulse, const float startTime, const float stopTime, const float stepTime) {
@@ -523,8 +555,6 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
     std::cout<<std::endl;
   #endif
 
-  double minDist=100000;
-  double tMin = 100*25;
 
   float globalTimeShift = 100;
 
@@ -543,23 +573,47 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
     std::cout<<"KUTimeLOG: DISTCC ";
   #endif
 
-  for (double t = startTime+globalTimeShift; t <= stopTime+globalTimeShift; t += stepTime) {
 
-    auto interpolated = interpolate(fullpulse, t);
-    double dist = .0;
 
-    for (int i=2; i<int(pedSubSamples.size()-2); ++i){
-        dist += std::pow(interpolated[i]-pedSubSamples[i],2);
+  float tStart = startTime+globalTimeShift;
+  float tStop = stopTime+globalTimeShift;
+  float tM = (tStart+tStop)/2;
+
+  float distStart, distStop;
+  int counter=0;
+  
+  do {
+    ++counter;
+    distStart = timeDistance(pedSubSamples, fullpulse, tStart);
+    distStop = timeDistance(pedSubSamples, fullpulse, tStop);
+
+    if (distStart < distStop) {
+      tStart = tStart;
+      tStop = tM;
     }
-    #if KUDEBUG == true
-      std::cout<<dist<<" ";
-    #endif
-    if (dist < minDist) {
-      minDist = dist;
-      tMin = t;
+    else {
+      tStart = tM;
+      tStop = tStop;
     }
-  }
+    tM = (tStart+tStop)/2;
+
+    } while ( std::abs(distStart - distStop)/distStop > 0.0001 && counter<100 );
+
   #if KUDEBUG == true
+    std::cout<<"Counter: " <<counter << " < " << (stopTime-startTime)/stepTime << "\t" << distStart << "\t" << distStop << std::endl;
+
+    double minDist=100000;
+    double tMin = 100*25;
+    for (double t = startTime+globalTimeShift; t <= stopTime+globalTimeShift; t += stepTime) {
+      float dist = timeDistance(pedSubSamples, fullpulse, t);
+      #if KUDEBUG == true
+        std::cout<<dist<<" ";
+      #endif
+      if (dist < minDist) {
+        minDist = dist;
+        tMin = t;
+      }
+    }
     std::cout<<std::endl;
     
     int shift = tMin/25;
@@ -572,15 +626,19 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
       std::cout<<ipulse[i]<<" ";
     }
     std::cout<<std::endl;
-  #endif
 
-  tMin -= globalTimeShift;
+    if (std::abs(tM-tMin)>stepTime)
+      std::cout<< "different min: "<< tMin << "\t" << tM <<std::endl;
 
-  if (tMin <= startTime || tMin > stopTime-stepTime) {  
-    tMin = 100*25;
+    #endif
+
+  tM -= globalTimeShift;
+
+  if (counter<2 || counter>90) {  
+    tM = 100*25;
   }
 
-  return tMin/25;
+  return tM/25;
 }
 
 FullSampleVector EcalUncalibRecHitMultiFitAlgo::interpolate(const FullSampleVector& fullpulse, const float t){
@@ -624,4 +682,14 @@ FullSampleVector EcalUncalibRecHitMultiFitAlgo::interpolate(const FullSampleVect
         interpPulseShifted[i] = 0;
   }
   return interpPulseShifted;
+}
+
+float EcalUncalibRecHitMultiFitAlgo::timeDistance(const std::vector<double>& pedSubSamples, const FullSampleVector& fullpulse, const float& t) {
+  auto interpolated = interpolate(fullpulse, t);
+  double dist = .0;
+  int exclude = 1;
+  for (int i=exclude; i<int(pedSubSamples.size()-exclude); ++i){
+      dist += std::pow(interpolated[i]-pedSubSamples[i],2);
+  }
+  return dist;
 }
