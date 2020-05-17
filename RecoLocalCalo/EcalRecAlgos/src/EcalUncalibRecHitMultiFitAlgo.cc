@@ -584,10 +584,10 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
   
   do {
     ++counter;
-    distStart = timeDistance(pedSubSamples, fullpulse, tStart);
-    distStop = timeDistance(pedSubSamples, fullpulse, tStop);
+    distStart = timeCC(pedSubSamples, fullpulse, tStart);
+    distStop = timeCC(pedSubSamples, fullpulse, tStop);
 
-    if (distStart < distStop) {
+    if (distStart > distStop) {
       tStart = tStart;
       tStop = tM;
     }
@@ -605,7 +605,7 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
     double minDist=100000;
     double tMin = 100*25;
     for (double t = startTime+globalTimeShift; t <= stopTime+globalTimeShift; t += stepTime) {
-      float dist = timeDistance(pedSubSamples, fullpulse, t);
+      float dist = timeCC(pedSubSamples, fullpulse, t);
       #if KUDEBUG == true
         std::cout<<dist<<" ";
       #endif
@@ -684,12 +684,32 @@ FullSampleVector EcalUncalibRecHitMultiFitAlgo::interpolate(const FullSampleVect
   return interpPulseShifted;
 }
 
-float EcalUncalibRecHitMultiFitAlgo::timeDistance(const std::vector<double>& pedSubSamples, const FullSampleVector& fullpulse, const float& t) {
-  auto interpolated = interpolate(fullpulse, t);
+float EcalUncalibRecHitMultiFitAlgo::timeDistance(const std::vector<double>& samples, const FullSampleVector& sigmalTemplate, const float& t) {
+  auto interpolated = interpolate(sigmalTemplate, t);
   double dist = .0;
   int exclude = 1;
-  for (int i=exclude; i<int(pedSubSamples.size()-exclude); ++i){
-      dist += std::pow(interpolated[i]-pedSubSamples[i],2);
+  for (int i=exclude; i<int(samples.size()-exclude); ++i){
+      dist += std::pow(interpolated[i]-samples[i],2);
   }
   return dist;
+}
+
+float EcalUncalibRecHitMultiFitAlgo::timeCC(const std::vector<double>& samples, const FullSampleVector& sigmalTemplate, const float& t) {
+  int exclude = 1;
+  double powerSamples = .0;
+  for (int i=exclude; i<int(samples.size()-exclude); ++i)
+    powerSamples += std::pow(samples[i],2);
+
+  auto interpolated = interpolate(sigmalTemplate, t);
+  double powerTemplate = .0;
+  for (int i=exclude; i<int(interpolated.size()-exclude); ++i)
+    powerTemplate += std::pow(interpolated[i],2);
+
+  double denominator = std::sqrt(powerTemplate*powerSamples);
+
+  double cc = .0;
+  for (int i=exclude; i<int(samples.size()-exclude); ++i){
+      cc += interpolated[i]*samples[i];
+  }
+  return cc/denominator;
 }

@@ -42,7 +42,8 @@ class EcalUncalibRecHitMultiFitAlgo
 
  private:
    FullSampleVector interpolate(const FullSampleVector& fullpulse, const float t=0);
-   float timeDistance(const std::vector<double>& pedSubSamples, const FullSampleVector& fullpulse, const float& t);
+   float timeDistance(const std::vector<double>& samples, const FullSampleVector& sigmalTemplate, const float& t);
+   float timeCC(const std::vector<double>& samples, const FullSampleVector& sigmalTemplate, const float& t);
 
    PulseChiSqSNNLS _pulsefunc;
    PulseChiSqSNNLS _pulsefuncSingle;
