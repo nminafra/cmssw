@@ -247,9 +247,9 @@ void EcalUncalibRecHitRatioMethodAlgo<C>::computeTime(
   double NullChi2 = 0;
 
   if (amplitudeCorrections.size() == amplitudes_.size()) {
-   for (unsigned int i = 0; i < amplitudes_.size(); i++) {
-     amplitudes_[i] -= amplitudeCorrections[i];
-   }
+    for (unsigned int i = 0; i < amplitudes_.size(); i++) {
+      amplitudes_[i] -= amplitudeCorrections[i];
+    }
   }
 
   // null hypothesis = no pulse, pedestal only

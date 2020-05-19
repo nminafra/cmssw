@@ -226,7 +226,159 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples, const SampleMatrix &sam
     _errvec[ipulseintimemin] = sigmaplus;
   }
             
-  _chisq = chisq0;  
+  _chisq = chisq0; 
+  
+
+  return status;
+  
+}
+
+bool PulseChiSqSNNLS::DoFitKU(const SampleVector &samples, const SampleMatrix &samplecov, const BXVector &bxs, const FullSampleVector &fullpulse, const FullSampleMatrix &fullpulsecov, const FullSampleVector &shiftedpulse, const SampleGainVector &gains, const SampleGainVector &badSamples) {
+ 
+  int npulse = bxs.rows();
+  
+  _sampvec = samples;
+  _bxs = bxs;
+  _pulsemat.resize(Eigen::NoChange,npulse);
+
+  //construct dynamic pedestals if applicable
+  int ngains = gains.maxCoeff()+1;
+  int nPedestals = 0;
+  for (int gainidx=0; gainidx<ngains; ++gainidx) {
+    SampleGainVector mask = gainidx*SampleGainVector::Ones();
+    SampleVector pedestal = (gains.array()==mask.array()).cast<SampleVector::value_type>();
+    if (pedestal.maxCoeff()>0.) {
+      ++nPedestals;      
+      _bxs.resize(npulse+nPedestals);
+      _bxs[npulse+nPedestals-1] = 100 + gainidx; //bx values >=100 indicate dynamic pedestals
+      _pulsemat.resize(Eigen::NoChange, npulse+nPedestals);
+      _pulsemat.col(npulse+nPedestals-1) = pedestal;
+    }
+  }
+  
+  //construct negative step functions for saturated or potentially slew-rate-limited samples
+  for (int isample=0; isample<SampleVector::RowsAtCompileTime; ++isample) {
+    if (badSamples.coeff(isample)>0) {
+      SampleVector step = SampleVector::Zero();
+      //step correction has negative sign for saturated or slew-limited samples which have been forced to zero
+      step[isample] = -1.;
+      
+      ++nPedestals;      
+      _bxs.resize(npulse+nPedestals);
+      _bxs[npulse+nPedestals-1] = -100 - isample; //bx values <=-100 indicate step corrections for saturated or slew-limited samples
+      _pulsemat.resize(Eigen::NoChange, npulse+nPedestals);
+      _pulsemat.col(npulse+nPedestals-1) = step;
+    }
+  }
+  
+  _npulsetot = npulse + nPedestals;
+  
+  _ampvec = PulseVector::Zero(_npulsetot);
+  _errvec = PulseVector::Zero(_npulsetot);  
+  _nP = 0;
+  _chisq = 0.;
+  
+  if (_bxs.rows()==1 && std::abs(_bxs.coeff(0))<100) {
+    _ampvec.coeffRef(0) = _sampvec.coeff(_bxs.coeff(0) + 5);
+  }
+  
+  aTamat.resize(_npulsetot,_npulsetot);
+
+  //initialize pulse template matrix
+  for (int ipulse=0; ipulse<npulse; ++ipulse) {
+    int bx = _bxs.coeff(ipulse);
+    int offset = 7-3-bx;
+    if (bx==0)
+      _pulsemat.col(ipulse) = shiftedpulse.segment<SampleVector::RowsAtCompileTime>(offset);
+    else
+      _pulsemat.col(ipulse) = fullpulse.segment<SampleVector::RowsAtCompileTime>(offset);
+  }
+  
+  //unconstrain pedestals already for first iteration since they should always be non-zero
+  if (nPedestals>0) {
+    for (int i=0; i<_bxs.rows(); ++i) {
+      int bx = _bxs.coeff(i);
+      if (bx>=100) {
+        NNLSUnconstrainParameter(i);
+      }
+    }
+  }
+  
+  //do the actual fit
+  bool status = Minimize(samplecov,fullpulsecov);
+  _ampvecmin = _ampvec;
+  _bxsmin = _bxs;
+  
+  if (!status) return status;
+  
+  if(!_computeErrors) return status;
+
+  //compute MINOS-like uncertainties for in-time amplitude
+  bool foundintime = false;
+  unsigned int ipulseintime = 0;
+  for (unsigned int ipulse=0; ipulse<_npulsetot; ++ipulse) {
+    if (_bxs.coeff(ipulse)==0) {
+      ipulseintime = ipulse;
+      foundintime = true;
+      break;
+    }
+  }
+  if (!foundintime) return status;
+  
+  const unsigned int ipulseintimemin = ipulseintime;
+  
+  double approxerr = ComputeApproxUncertainty(ipulseintime);
+  double chisq0 = _chisq;
+  double x0 = _ampvecmin[ipulseintime];  
+  
+  //move in time pulse first to active set if necessary
+  if (ipulseintime<_nP) {
+    _pulsemat.col(_nP-1).swap(_pulsemat.col(ipulseintime));
+    std::swap(_ampvec.coeffRef(_nP-1),_ampvec.coeffRef(ipulseintime));
+    std::swap(_bxs.coeffRef(_nP-1),_bxs.coeffRef(ipulseintime));
+    ipulseintime = _nP - 1;
+    --_nP;    
+  }
+  
+  
+  SampleVector pulseintime = _pulsemat.col(ipulseintime);
+  _pulsemat.col(ipulseintime).setZero();
+  
+  //two point interpolation for upper uncertainty when amplitude is away from boundary
+  double xplus100 = x0 + approxerr;
+  _ampvec.coeffRef(ipulseintime) = xplus100;
+  _sampvec = samples - _ampvec.coeff(ipulseintime)*pulseintime;  
+  status &= Minimize(samplecov,fullpulsecov);
+  if (!status) return status;
+  double chisqplus100 = ComputeChiSq();
+  
+  double sigmaplus = std::abs(xplus100-x0)/sqrt(chisqplus100-chisq0);
+  
+  //if amplitude is sufficiently far from the boundary, compute also the lower uncertainty and average them
+  if ( (x0/sigmaplus) > 0.5 ) {
+    for (unsigned int ipulse=0; ipulse<_npulsetot; ++ipulse) {
+      if (_bxs.coeff(ipulse)==0) {
+        ipulseintime = ipulse;
+        break;
+      }
+    }    
+    double xminus100 = std::max(0.,x0-approxerr);
+    _ampvec.coeffRef(ipulseintime) = xminus100;
+   _sampvec = samples - _ampvec.coeff(ipulseintime)*pulseintime;
+    status &= Minimize(samplecov,fullpulsecov);
+    if (!status) return status;
+    double chisqminus100 = ComputeChiSq();
+    
+    double sigmaminus = std::abs(xminus100-x0)/sqrt(chisqminus100-chisq0);
+    _errvec[ipulseintimemin] = 0.5*(sigmaplus + sigmaminus);
+    
+  }
+  else {
+    _errvec[ipulseintimemin] = sigmaplus;
+  }
+            
+  _chisq = chisq0; 
+  
 
   return status;
   
