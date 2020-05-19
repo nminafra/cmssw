@@ -399,7 +399,7 @@ double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame
     }
     tM = (tStart+tStop)/2;
 
-    } while ( std::abs(distStart - distStop)/distStop > 0.0001 && counter<100 );
+    } while ( std::abs((distStart - distStop)/distStop) > 0.0001 && counter<100 );
     
 
   
@@ -597,7 +597,7 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
     }
     tM = (tStart+tStop)/2;
 
-    } while ( std::abs(distStart - distStop)/distStop > 0.0001 && counter<100 );
+    } while ( std::abs((distStart - distStop)/distStop) > 0.0001 && counter<100 );
 
   #if KUDEBUG == true
     std::cout<<"Counter: " <<counter << " < " << (stopTime-startTime)/stepTime << "\t" << distStart << "\t" << distStop << std::endl;

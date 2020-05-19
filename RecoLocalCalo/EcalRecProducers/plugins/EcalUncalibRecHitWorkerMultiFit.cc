@@ -72,6 +72,7 @@ EcalUncalibRecHitWorkerMultiFit::EcalUncalibRecHitWorkerMultiFit(const edm::Para
   else if(timeAlgoName=="RatioMethodOOT") timealgo_=ratioMethodOOT;
   else if(timeAlgoName=="Kansas") timealgo_=kansasMethod;
   else if(timeAlgoName=="KansasCC") timealgo_=kansasMethodCC;
+  else if(timeAlgoName=="KansasDummy") timealgo_=kansasDummy;
   else if(timeAlgoName!="None")
    edm::LogError("EcalUncalibRecHitError") << "No time estimation algorithm defined";
 
@@ -563,7 +564,7 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
               float step=0.01;
               float tempt = 0;
               if (timealgo_ == kansasMethod) {
-                tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, 0*seedTime-15,0*seedTime+15, step);
+                tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, -15,+15, step);
                 #if KUDEBUG == true
                   std::cout<<"KUTimeLOG: KU seed: "<<seedTime<<"  t: "<<tempt<<std::endl;
                 #endif
@@ -590,6 +591,9 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 else
                   uncalibRecHit.setJitterError( step/25 );
               }
+            } else if (timealgo_ == kansasDummy) {
+              uncalibRecHit.setJitter( 5./25 );
+              uncalibRecHit.setJitterError( 0.01 ); 
             }
 
         }
