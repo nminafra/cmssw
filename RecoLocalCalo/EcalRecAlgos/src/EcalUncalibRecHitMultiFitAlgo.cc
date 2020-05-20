@@ -226,16 +226,16 @@ EcalUncalibratedRecHit EcalUncalibRecHitMultiFitAlgo::makeRecHit(const EcalDataF
   return rh;
 }
 
-double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const SampleMatrixGainArray &noisecors, const FullSampleVector &fullpulse, const FullSampleMatrix &fullpulsecov, const BXVector &activeBX, const float startTime, const float stopTime, const float stepTime) {
-  // uint32_t flags = 0;
+double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const SampleMatrixGainArray &noisecors, const FullSampleVector &fullpulse, const FullSampleMatrix &fullpulsecov, const BXVector &activeBX, EcalUncalibratedRecHit& uncalibRecHit, const float startTime, const float stopTime) {
+  uint32_t flags = 0;
 
   const unsigned int nsample = EcalDataFrame::MAXSAMPLES;
 
-  // double maxamplitude = -std::numeric_limits<double>::max();
+  double maxamplitude = -std::numeric_limits<double>::max();
   const unsigned int iSampleMax = 5;
-  // const unsigned int iFullPulseMax = 9;
+  const unsigned int iFullPulseMax = 9;
 
-  // double pedval = 0.;
+  double pedval = 0.;
 
   SampleVector amplitudes;
   SampleGainVector gainsNoise;
@@ -296,28 +296,31 @@ double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame
 
     amplitudes[iSample] = amplitude;
 
-    // if (iSample==iSampleMax) {
-    //   maxamplitude = amplitude;
-    //   pedval = pedestal;
-    // }
+    if (iSample==iSampleMax) {
+      maxamplitude = amplitude;
+      pedval = pedestal;
+    }
 
   }
+
+  double amplitude, amperr;
+  bool status = false;
 
   //special handling for gain switch, where sample before maximum is potentially affected by slew rate limitation
   //optionally apply a stricter criteria, assuming slew rate limit is only reached in case where maximum sample has gain switched but previous sample has not
   //option 1: use simple max-sample algorithm
-  // if (hasGainSwitch && _gainSwitchUseMaxSample) {
-  //   double maxpulseamplitude = maxamplitude / fullpulse[iFullPulseMax];
-  //   EcalUncalibratedRecHit rh( dataFrame.id(), maxpulseamplitude, pedval, 0., 0., flags );
-  //   rh.setAmplitudeError(0.);
-  //   for (unsigned int ipulse=0; ipulse<_pulsefunc.BXs().rows(); ++ipulse) {
-  //     int bx = _pulsefunc.BXs().coeff(ipulse);
-  //     if (bx!=0) {
-  //       rh.setOutOfTimeAmplitude(bx+5, 0.0);
-  //     }
-  //   }
-  //   return -100;
-  // }
+  if (hasGainSwitch && _gainSwitchUseMaxSample) {
+    double maxpulseamplitude = maxamplitude / fullpulse[iFullPulseMax];
+    EcalUncalibratedRecHit rh( dataFrame.id(), maxpulseamplitude, pedval, 0., 0., flags );
+    rh.setAmplitudeError(0.);
+    for (unsigned int ipulse=0; ipulse<_pulsefunc.BXs().rows(); ++ipulse) {
+      int bx = _pulsefunc.BXs().coeff(ipulse);
+      if (bx!=0) {
+        rh.setOutOfTimeAmplitude(bx+5, 0.0);
+      }
+    }
+    return 100*25;
+  }
 
   //option2: A floating negative single-sample offset is added to the fit
   //such that the affected sample is treated only as a lower limit for the true amplitude
@@ -383,10 +386,10 @@ double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame
   do {
     ++counter;
     auto interpolated = interpolate(fullpulse, tStart);
-    _pulsefunc.DoFitKU(amplitudes,noisecov,activeBX,fullpulse,fullpulsecov,interpolated,gainsPedestal,badSamples);
+    status = _pulsefunc.DoFitKU(amplitudes,noisecov,activeBX,fullpulse,fullpulsecov,interpolated,gainsPedestal,badSamples);
     distStart = _pulsefunc.ChiSq();
     interpolated = interpolate(fullpulse, tStop);
-    _pulsefunc.DoFitKU(amplitudes,noisecov,activeBX,fullpulse,fullpulsecov,interpolated,gainsPedestal,badSamples);
+    status = _pulsefunc.DoFitKU(amplitudes,noisecov,activeBX,fullpulse,fullpulsecov,interpolated,gainsPedestal,badSamples);
     distStop = _pulsefunc.ChiSq();
 
     if (distStart < distStop) {
@@ -400,11 +403,40 @@ double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame
     tM = (tStart+tStop)/2;
 
     } while ( std::abs((distStart - distStop)/distStop) > 0.0001 && counter<100 );
-    
+  
+  if (!status) {
+      edm::LogWarning("EcalUncalibRecHitMultiFitAlgo::makeRecHit") << "Failed Fit" << std::endl;
+    }
+
+    unsigned int ipulseintime = 0;
+    for (unsigned int ipulse=0; ipulse<_pulsefunc.BXs().rows(); ++ipulse) {
+      if (_pulsefunc.BXs().coeff(ipulse)==0) {
+        ipulseintime = ipulse;
+        break;
+      }
+    }
+
+    amplitude = status ? _pulsefunc.X()[ipulseintime] : 0.;
+    amperr = status ? _pulsefunc.Errors()[ipulseintime] : 0.;
+
+  EcalUncalibratedRecHit rh( dataFrame.id(), amplitude , pedval, 0., distStop, flags );
+  uncalibRecHit = rh;
+  uncalibRecHit.setAmplitudeError(amperr);
+
+  for (unsigned int ipulse=0; ipulse<_pulsefunc.BXs().rows(); ++ipulse) {
+    int bx = _pulsefunc.BXs().coeff(ipulse);
+    if (bx!=0 && std::abs(bx)<100) {
+      uncalibRecHit.setOutOfTimeAmplitude(bx+5, status ? _pulsefunc.X().coeff(ipulse) : 0.);
+    }
+    else if (bx==(100+gainsPedestal[iSampleMax])) {
+      uncalibRecHit.setPedestal(status ? _pulsefunc.X().coeff(ipulse) : 0.);
+    }
+  }
 
   
   #if KUDEBUG == true
-    std::cout<<"Counter: " <<counter << " < " << (stopTime-startTime)/stepTime << "\t" << distStart << "\t" << distStop << std::endl;
+    float stepTime = 0.01;
+    // std::cout<<"Counter: " <<counter << " < " << (stopTime-startTime)/stepTime << "\t" << distStart << "\t" << distStop << std::endl;
     std::cout<<"KUTimeLOG: PULSE: ";
     for (int i=0;i<amplitudes.size(); ++i) {
       std::cout<<amplitudes[i]<<" ";
@@ -475,10 +507,12 @@ double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame
     tM = 100*25;
   }
 
+
+
   return tM/25;
 }
 
-double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFrame, const std::vector<double> &amplitudes, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const FullSampleVector &fullpulse, const float startTime, const float stopTime, const float stepTime) {
+double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFrame, const std::vector<double> &amplitudes, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const FullSampleVector &fullpulse, EcalUncalibratedRecHit& uncalibRecHit, const float startTime, const float stopTime) {
   const unsigned int nsample = EcalDataFrame::MAXSAMPLES;
 
   double maxamplitude = -std::numeric_limits<double>::max();
@@ -525,6 +559,7 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
   }
 
   #if KUDEBUG == true
+  float stepTime = 0.01;
     std::cout<<"KUTimeLOG: PULSECC: ";
     for (unsigned int i=0;i<pedSubSamples.size(); ++i) {
       std::cout<<pedSubSamples[i]<<" ";
@@ -581,6 +616,7 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
 
   float distStart, distStop;
   int counter=0;
+
   
   do {
     ++counter;
@@ -600,16 +636,16 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
     } while ( std::abs((distStart - distStop)/distStop) > 0.0001 && counter<100 );
 
   #if KUDEBUG == true
-    std::cout<<"Counter: " <<counter << " < " << (stopTime-startTime)/stepTime << "\t" << distStart << "\t" << distStop << std::endl;
+    // std::cout<<"Counter: " <<counter << " < " << (stopTime-startTime)/stepTime << "\t" << distStart << "\t" << distStop << std::endl;
 
-    double minDist=100000;
+    double minDist=0;
     double tMin = 100*25;
     for (double t = startTime+globalTimeShift; t <= stopTime+globalTimeShift; t += stepTime) {
       float dist = timeCC(pedSubSamples, fullpulse, t);
       #if KUDEBUG == true
         std::cout<<dist<<" ";
       #endif
-      if (dist < minDist) {
+      if (dist > minDist) {
         minDist = dist;
         tMin = t;
       }

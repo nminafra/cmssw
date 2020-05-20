@@ -534,37 +534,10 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
 
             } else if (timealgo_ == kansasMethod || timealgo_ == kansasMethodCC) {
 
-              double seedTime = .0;
-
-              // ratio method for starting point
-              std::vector<double> amplitudes(activeBX.size(),.0);
-              if (not barrel) {
-                  ratioMethod_endcap_.init( *itdg, *sampleMask_, pedVec, pedRMSVec, gainRatios );
-                  ratioMethod_endcap_.computeTime( EEtimeFitParameters_, EEtimeFitLimits_, EEamplitudeFitParameters_, amplitudes );
-                  ratioMethod_endcap_.computeAmplitude( EEamplitudeFitParameters_);
-                  EcalUncalibRecHitRatioMethodAlgo<EEDataFrame>::CalculatedRecHit crh = ratioMethod_endcap_.getCalculatedRecHit();
-                  double theTimeCorrectionEE = timeCorrection(uncalibRecHit.amplitude(),
-                                                              timeCorrBias_->EETimeCorrAmplitudeBins, timeCorrBias_->EETimeCorrShiftBins);
-
-                  seedTime = crh.timeMax - 5 + theTimeCorrectionEE;
-              } else {
-                  ratioMethod_barrel_.init( *itdg, *sampleMask_, pedVec, pedRMSVec, gainRatios );
-                  ratioMethod_barrel_.fixMGPAslew(*itdg);
-                  ratioMethod_barrel_.computeTime( EBtimeFitParameters_, EBtimeFitLimits_, EBamplitudeFitParameters_, amplitudes );
-                  ratioMethod_barrel_.computeAmplitude( EBamplitudeFitParameters_);
-                  EcalUncalibRecHitRatioMethodAlgo<EBDataFrame>::CalculatedRecHit crh = ratioMethod_barrel_.getCalculatedRecHit();
-
-                  double theTimeCorrectionEB = timeCorrection(uncalibRecHit.amplitude(),
-                                                              timeCorrBias_->EBTimeCorrAmplitudeBins, timeCorrBias_->EBTimeCorrShiftBins);
-
-                  seedTime = crh.timeMax - 5 + theTimeCorrectionEB;
-              }
-
-
               float step=0.01;
               float tempt = 0;
               if (timealgo_ == kansasMethod) {
-                tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, -15,+15, step);
+                tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, uncalibRecHit, -25,+25);
                 #if KUDEBUG == true
                   std::cout<<"KUTimeLOG: KU seed: "<<seedTime<<"  t: "<<tempt<<std::endl;
                 #endif
@@ -579,7 +552,7 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 std::vector<double> amplitudes;
                 for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
                 // seedTime = 0;
-                tempt = multiFitMethod_.computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, 0*seedTime-50,0*seedTime+50, step);
+                tempt = multiFitMethod_.computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, uncalibRecHit, -25,25);
 
                 #if KUDEBUG == true
                   std::cout<<"KUTimeLOG: KUCC seed: "<<seedTime<<"  t: "<<tempt<<std::endl;
