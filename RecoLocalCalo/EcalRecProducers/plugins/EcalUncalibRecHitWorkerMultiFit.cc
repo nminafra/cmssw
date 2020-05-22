@@ -534,36 +534,33 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
 
             } else if (timealgo_ == kansasMethod || timealgo_ == kansasMethodCC) {
 
-              float step=0.01;
+              float timeStep=1;
+              float startTime = -25;
+              float stopTime = 25;
               float tempt = 0;
+
               if (timealgo_ == kansasMethod) {
-                tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, uncalibRecHit, -25,+25);
+                tempt = multiFitMethod_.computeTime(*itdg, aped, aGain, noisecors, fullpulse, fullpulsecov, activeBX, uncalibRecHit, startTime, stopTime);
                 #if KUDEBUG == true
                   std::cout<<"KUTimeLOG: KU seed: "<<seedTime<<"  t: "<<tempt<<std::endl;
                 #endif
-
-                uncalibRecHit.setJitter( tempt );
-                if (tempt > 80)
-                  uncalibRecHit.setJitterError( -step/25 ); 
-                else
-                  uncalibRecHit.setJitterError( step/25 );
               }
               if (timealgo_ == kansasMethodCC) {
                 std::vector<double> amplitudes;
                 for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
                 // seedTime = 0;
-                tempt = multiFitMethod_.computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, uncalibRecHit, -25,25);
+                tempt = multiFitMethod_.computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, uncalibRecHit, startTime, stopTime);
 
                 #if KUDEBUG == true
                   std::cout<<"KUTimeLOG: KUCC seed: "<<seedTime<<"  t: "<<tempt<<std::endl;
                 #endif
-
-                uncalibRecHit.setJitter( tempt );
-                if (tempt > 80)
-                  uncalibRecHit.setJitterError( -step/25 ); 
-                else
-                  uncalibRecHit.setJitterError( step/25 );
               }
+              uncalibRecHit.setJitter( tempt );
+              if (tempt > stopTime-timeStep || tempt<startTime+timeStep)
+                uncalibRecHit.setJitterError( -timeStep/25 ); 
+              else
+                uncalibRecHit.setJitterError( timeStep/25 );
+            
             } else if (timealgo_ == kansasDummy) {
               uncalibRecHit.setJitter( 5./25 );
               uncalibRecHit.setJitterError( 0.01 ); 
