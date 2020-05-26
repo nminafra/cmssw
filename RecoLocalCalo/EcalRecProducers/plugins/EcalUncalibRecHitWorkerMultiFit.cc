@@ -562,7 +562,7 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 uncalibRecHit.setJitterError( timeStep/25 );
             
             } else if (timealgo_ == kansasDummy) {
-              uncalibRecHit.setJitter( 5./25 );
+              uncalibRecHit.setJitter( 0. );
               uncalibRecHit.setJitterError( 0.01 ); 
             }
 
