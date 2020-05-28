@@ -402,7 +402,7 @@ double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame
     }
     tM = (tStart+tStop)/2;
 
-    } while ( tStop - tStart > 0.001 && counter<20 );
+    } while ( tStop - tStart > 0.001 && counter<40 );
   
   if (!status) {
       edm::LogWarning("EcalUncalibRecHitMultiFitAlgo::makeRecHit") << "Failed Fit" << std::endl;
@@ -503,7 +503,7 @@ double EcalUncalibRecHitMultiFitAlgo::computeTime(const EcalDataFrame& dataFrame
     std::cout<<std::endl;
   #endif
 
-  if (counter<2 || counter>18) {  
+  if (counter<2 || counter>38) {  
     tM = 100*25;
   }
 
@@ -633,7 +633,7 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
     }
     tM = (tStart+tStop)/2;
 
-    } while ( tStop - tStart > 0.001 && counter<20 );
+    } while ( tStop - tStart > 0.001 && counter<40 );
     // } while ( std::abs((distStart - distStop)/distStop) > 0.0001 && counter<100 );
 
   #if KUDEBUG == true
@@ -671,7 +671,9 @@ double EcalUncalibRecHitMultiFitAlgo::computeTimeCC(const EcalDataFrame& dataFra
 
   tM -= globalTimeShift;
 
-  if (counter<2 || counter>18) {  
+  if (counter<2 || counter>38) {  
+    if (counter>15)
+      std::cout<<"Counter KUTMF "<<counter<<std::endl;
     tM = 100*25;
   }
 

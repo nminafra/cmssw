@@ -555,11 +555,14 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                   std::cout<<"KUTimeLOG: KUCC seed: "<<seedTime<<"  t: "<<tempt<<std::endl;
                 #endif
               }
-              uncalibRecHit.setJitter( tempt );
+              uncalibRecHit.setJitter( -tempt );
               if (tempt > stopTime-timeStep || tempt<startTime+timeStep)
                 uncalibRecHit.setJitterError( -timeStep/25 ); 
               else
                 uncalibRecHit.setJitterError( timeStep/25 );
+
+              if (timealgo_ == kansasMethod && (std::abs(tempt)<0.010 && uncalibRecHit.amplitude()<100)) 
+                uncalibRecHit.setJitterError( -timeStep/25 ); 
             
             } else if (timealgo_ == kansasDummy) {
               uncalibRecHit.setJitter( 0. );
