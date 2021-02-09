@@ -66,6 +66,7 @@ EcalUncalibRecHitWorkerMultiFit::EcalUncalibRecHitWorkerMultiFit(const edm::Para
   auto const & timeAlgoName = ps.getParameter<std::string>("timealgo");
   if(timeAlgoName=="RatioMethod") timealgo_=ratioMethod;
   else if(timeAlgoName=="WeightsMethod") timealgo_=weightsMethod;
+  else if(timeAlgoName=="KansasCC") timealgo_=kansasMethodCC;
   else if(timeAlgoName!="None")
    edm::LogError("EcalUncalibRecHitError") << "No time estimation algorithm defined";
 
@@ -489,7 +490,28 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
                 }
                 uncalibRecHit.setJitter( timerh );
                 uncalibRecHit.setJitterError( 0. ); // not computed with weights
-            }  else { // no time method;
+            
+            // Added for KU CC
+            } else if (timealgo_ == kansasMethodCC) {
+                uncalibRecHit.setJitterError( 0. );                  	
+              float timeStep=1;
+              float startTime = -25;
+              float stopTime = 25;
+              float tempt = 0;
+
+              std::vector<double> amplitudes;
+              for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
+              // seedTime = 0;
+              tempt = multiFitMethod_.computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, uncalibRecHit, startTime, stopTime);
+
+              uncalibRecHit.setJitter( -tempt );
+              if (tempt > stopTime-timeStep || tempt<startTime+timeStep)
+                uncalibRecHit.setJitterError( -timeStep/25 ); 
+              else
+                uncalibRecHit.setJitterError( timeStep/25 );
+
+            // End of KU CC modification
+            } else { // no time method;
                 uncalibRecHit.setJitter( 0. );
                 uncalibRecHit.setJitterError( 0. );                  
             }

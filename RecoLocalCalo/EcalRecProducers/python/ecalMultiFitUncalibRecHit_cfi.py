@@ -33,7 +33,8 @@ ecalMultiFitUncalibRecHit = cms.EDProducer("EcalUncalibRecHitProducer",
       addPedestalUncertaintyEE = cms.double(0.),
   
       # decide which algorithm to be use to calculate the jitter
-      timealgo = cms.string("RatioMethod"),
+      # timealgo = cms.string("RatioMethod"),
+      timealgo = cms.string("KansasCC"),
   
       # for ratio method
       EBtimeFitParameters = cms.vdouble(-2.015452e+00, 3.130702e+00, -1.234730e+01, 4.188921e+01, -8.283944e+01, 9.101147e+01, -5.035761e+01, 1.105621e+01),
