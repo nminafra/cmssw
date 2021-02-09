@@ -35,6 +35,8 @@ class EcalUncalibRecHitMultiFitAlgo
   void setAddPedestalUncertainty(double x) { _addPedestalUncertainty = x; }
   void setSimplifiedNoiseModelForGainSwitch(bool b) { _simplifiedNoiseModelForGainSwitch = b; }
   void setGainSwitchUseMaxSample(bool b) { _gainSwitchUseMaxSample = b; }
+
+  double computeTimeCC(const EcalDataFrame& dataFrame, const std::vector<double> &amplitudes, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const FullSampleVector &fullpulse, EcalUncalibratedRecHit& uncalibRecHit, const float startTime=-5, const float stopTime=5);
   
  private:
    PulseChiSqSNNLS _pulsefunc;
@@ -51,5 +53,9 @@ class EcalUncalibRecHitMultiFitAlgo
    BXVector _singlebx;
 
 };
+
+// Helper functions for CC
+FullSampleVector interpolatePulse(const FullSampleVector& fullpulse, const float t=0);
+float computeCC(const std::vector<double>& samples, const FullSampleVector& sigmalTemplate, const float& t);
 
 #endif
