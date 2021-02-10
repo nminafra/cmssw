@@ -502,7 +502,7 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
               std::vector<double> amplitudes;
               for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
               // seedTime = 0;
-              tempt = multiFitMethod_.computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, uncalibRecHit, startTime, stopTime);
+              tempt = computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, uncalibRecHit, startTime, stopTime);
 
               uncalibRecHit.setJitter( -tempt );
               if (tempt > stopTime-timeStep || tempt<startTime+timeStep)
