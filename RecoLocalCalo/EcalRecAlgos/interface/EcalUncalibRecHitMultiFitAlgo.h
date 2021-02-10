@@ -52,9 +52,4 @@ class EcalUncalibRecHitMultiFitAlgo
 
 };
 
-// Helper functions for CC
-double computeTimeCC(const EcalDataFrame& dataFrame, const std::vector<double> &amplitudes, const EcalPedestals::Item * aped, const EcalMGPAGainRatio * aGain, const FullSampleVector &fullpulse, EcalUncalibratedRecHit& uncalibRecHit, const float startTime=-5, const float stopTime=5);
-FullSampleVector interpolatePulse(const FullSampleVector& fullpulse, const float t=0);
-float computeCC(const std::vector<double>& samples, const FullSampleVector& sigmalTemplate, const float& t);
-
 #endif

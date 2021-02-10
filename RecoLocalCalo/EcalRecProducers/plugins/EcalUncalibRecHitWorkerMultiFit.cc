@@ -493,22 +493,26 @@ EcalUncalibRecHitWorkerMultiFit::run( const edm::Event & evt,
             
             // Added for KU CC
             } else if (timealgo_ == kansasMethodCC) {
+                
+                float startTime = -25;
+                float stopTime = 25;
+                EcalUncalibRecHitTimingCCAlgo computeCC(startTime, stopTime);
+
                 uncalibRecHit.setJitterError( 0. );                  	
-              float timeStep=1;
-              float startTime = -25;
-              float stopTime = 25;
-              float tempt = 0;
+                float timeStep=1;
+                float tempt = 0;
 
-              std::vector<double> amplitudes;
-              for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
-              // seedTime = 0;
-              tempt = computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, uncalibRecHit, startTime, stopTime);
+                std::vector<double> amplitudes;
+                for(unsigned int ibx=0; ibx<activeBX.size(); ++ibx) amplitudes.push_back(uncalibRecHit.outOfTimeAmplitude(ibx));
+                // seedTime = 0;
+                
+                tempt = computeCC.computeTimeCC( *itdg, amplitudes, aped, aGain, fullpulse, uncalibRecHit);
 
-              uncalibRecHit.setJitter( -tempt );
-              if (tempt > stopTime-timeStep || tempt<startTime+timeStep)
-                uncalibRecHit.setJitterError( -timeStep/25 ); 
-              else
-                uncalibRecHit.setJitterError( timeStep/25 );
+                uncalibRecHit.setJitter( -tempt );
+                if (tempt > stopTime-timeStep || tempt<startTime+timeStep)
+                  uncalibRecHit.setJitterError( -timeStep/25 ); 
+                else
+                  uncalibRecHit.setJitterError( timeStep/25 );
 
             // End of KU CC modification
             } else { // no time method;
